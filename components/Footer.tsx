@@ -23,8 +23,8 @@ export default function Footer() {
         {/* Contact */}
         <div className="flex flex-col items-center md:items-start gap-2">
           <span className="font-medium text-slate-800">Contact</span>
-          <p>Email: <a href="mailto:hello@replate.id" className="hover:text-green-700">hello@replate.id</a></p>
-          <p>Instagram: <a href="https://instagram.com/replate.id" target="_blank" className="hover:text-green-700">@replate.id</a></p>
+          <p>Email: <a href="mailto:replate.id@gmail.com" className="hover:text-green-700">replate.id@gmail.com</a></p>
+          <p>Instagram: <a href="https://instagram.com/replateid" target="_blank" className="hover:text-green-700">@replateid</a></p>
         </div>
       </div>
 

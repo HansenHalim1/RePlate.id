@@ -1,23 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseServer } from '@/lib/supabase-server'
-import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@/lib/supabase.types'
 
 export const dynamic = 'force-dynamic' // prevent caching
 
-/**
- * GET /api/cart/get
- * Fetches the logged-in user's cart items (with product details).
- */
-export async function POST(req: NextRequest) {
-  try {
-    const { user_id } = await req.json()
+type CartItemWithProduct = Database['public']['Tables']['cart_items']['Row'] & {
+  product: Database['public']['Tables']['products']['Row'] | null
+}
 
-    if (!user_id) {
-      return NextResponse.json({ error: 'Missing user_id' }, { status: 400 })
+async function handleCartRequest(req: NextRequest) {
+  try {
+    const authHeader = req.headers.get('authorization') || ''
+    const accessToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null
+    if (!accessToken) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const supabase = supabaseServer()
+    const supabase = supabaseServer(accessToken)
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
 
     const { data, error } = await supabase
       .from('cart_items')
@@ -33,21 +40,25 @@ export async function POST(req: NextRequest) {
         )
       `
       )
-      .eq('user_id', user_id)
-      .returns<
-        (Database['public']['Tables']['cart_items']['Row'] & {
-          product: Database['public']['Tables']['products']['Row'] | null
-        })[]
-      >()
+      .eq('user_id', user.id)
+      .returns<CartItemWithProduct[]>()
 
     if (error) {
-      console.error(error)
+      console.error('Error fetching cart:', error)
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
     return NextResponse.json({ items: data || [] })
-  } catch (err) {
+  } catch (err: any) {
     console.error('Unexpected error in /api/cart/get:', err)
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
+    return NextResponse.json({ error: err.message || 'Internal Server Error' }, { status: 500 })
   }
+}
+
+export async function GET(req: NextRequest) {
+  return handleCartRequest(req)
+}
+
+export async function POST(req: NextRequest) {
+  return handleCartRequest(req)
 }

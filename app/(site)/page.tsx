@@ -39,10 +39,24 @@ export default function HomePage() {
     }
 
     setLoading(true)
+
+    const {
+      data: { session },
+    } = await supabaseBrowser.auth.getSession()
+
+    if (!session?.access_token) {
+      setLoading(false)
+      alert('Session expired. Please log in again.')
+      return
+    }
+
     const res = await fetch('/api/cart/add', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ product_id: productId, user_id: userId, quantity: 1 }),
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ product_id: productId, quantity: 1 }),
     })
 
     const result = await res.json()
