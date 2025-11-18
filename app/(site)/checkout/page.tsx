@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
 import { supabaseBrowser } from '@/lib/supabase-browser'
@@ -26,13 +26,16 @@ const MIDTRANS_CLIENT_KEY =
 
 export default function CheckoutPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [items, setItems] = useState<CartItemRow[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedPayment, setSelectedPayment] = useState<'bank' | 'card'>('bank')
   const [rememberCard, setRememberCard] = useState(true)
   const [paying, setPaying] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [status, setStatus] = useState<string | null>(null)
   const [snapReady, setSnapReady] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
 
   // Load cart for summary
   useEffect(() => {
@@ -45,6 +48,14 @@ export default function CheckoutPage() {
         router.push('/login')
         return
       }
+
+      const selectedParam = searchParams.get('items')
+      const requestedIds = selectedParam
+        ? selectedParam
+            .split(',')
+            .map((id) => id.trim())
+            .filter(Boolean)
+        : null
 
       const { data, error } = await supabaseBrowser
         .from('cart_items')
@@ -64,12 +75,21 @@ export default function CheckoutPage() {
         .returns<CartItemRow[]>() // typed
 
       if (error) console.error('Error fetching cart:', error.message)
-      setItems(data ?? [])
+
+      const rows = data ?? []
+      setItems(rows)
+
+      if (requestedIds && requestedIds.length > 0) {
+        const filtered = rows.filter((row) => requestedIds.includes(row.id))
+        setSelectedIds(new Set((filtered.length > 0 ? filtered : rows).map((row) => row.id)))
+      } else {
+        setSelectedIds(new Set(rows.map((row) => row.id)))
+      }
       setLoading(false)
     }
 
     fetchCart()
-  }, [router])
+  }, [router, searchParams])
 
   // Load Midtrans Snap JS once
   useEffect(() => {
@@ -93,11 +113,30 @@ export default function CheckoutPage() {
     document.body.appendChild(script)
   }, [MIDTRANS_CLIENT_KEY])
 
-  const total = items.reduce((sum, item) => sum + (item.product?.price || 0) * item.quantity, 0)
+  const selectedItems = items.filter((item) => selectedIds.has(item.id))
+  const total = selectedItems.reduce((sum, item) => sum + (item.product?.price || 0) * item.quantity, 0)
+
+  const toggleItem = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+    setStatus(null)
+
+    if (selectedIds.size === 0) {
+      setError('Please select at least one item to pay.')
+      return
+    }
 
     if (!MIDTRANS_CLIENT_KEY) {
       setError('Payment gateway is not configured.')
@@ -120,11 +159,15 @@ export default function CheckoutPage() {
         return
       }
 
+      const selectedItemIds = selectedItems.map((item) => item.id)
+
       const res = await fetch('/api/payments/create', {
         method: 'POST',
         headers: {
+          'Content-Type': 'application/json',
           Authorization: `Bearer ${accessToken}`,
         },
+        body: JSON.stringify({ itemIds: selectedItemIds }),
       })
 
       const json = await res.json()
@@ -132,13 +175,17 @@ export default function CheckoutPage() {
         throw new Error(json?.error || 'Unable to start payment.')
       }
 
+      setStatus('Opening secure payment popup...')
+
       window.snap.pay(json.token, {
         onSuccess: () => {
           setPaying(false)
+          setStatus('Payment successful. Redirecting...')
           router.push('/?payment=success')
         },
         onPending: () => {
           setPaying(false)
+          setStatus('Payment pending. You can continue shopping.')
           router.push('/?payment=pending')
         },
         onError: () => {
@@ -148,11 +195,13 @@ export default function CheckoutPage() {
         onClose: () => {
           setPaying(false)
           setError('Payment popup was closed before finishing.')
+          setStatus(null)
         },
       })
     } catch (err: any) {
       setPaying(false)
       setError(err?.message || 'Unable to start payment.')
+      setStatus(null)
     }
   }
 
@@ -160,6 +209,22 @@ export default function CheckoutPage() {
     <>
       <Navbar />
       <main className="min-h-screen bg-[#f2f2f2] pb-16">
+        {(error || status) && (
+          <div
+            className={`border-b ${
+              error
+                ? 'bg-[#fdecea] border-[#f5c2c7] text-[#b02a37]'
+                : 'bg-[#eef7ff] border-[#c7dfff] text-[#1d4b8f]'
+            }`}
+          >
+            <div className="rp-shell py-3 text-sm flex items-center gap-2">
+              {paying && (
+                <span className="inline-block h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+              )}
+              {error || status}
+            </div>
+          </div>
+        )}
         <div className="rp-shell pt-8">
           <div className="rounded-2xl border border-[#d7dce4] shadow-lg overflow-hidden">
             <div className="grid md:grid-cols-[360px_1fr]">
@@ -177,6 +242,12 @@ export default function CheckoutPage() {
                         key={item.id}
                         className="bg-white text-slate-800 rounded-xl px-4 py-3 flex items-center gap-3"
                       >
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(item.id)}
+                          onChange={() => toggleItem(item.id)}
+                          className="accent-[color:var(--rp-green)]"
+                        />
                         <img
                           src={item.product?.image_url || '/lunch.webp'}
                           alt={item.product?.name || 'Product'}
@@ -194,7 +265,9 @@ export default function CheckoutPage() {
                   )}
                 </div>
                 <div className="bg-white text-slate-800 rounded-xl px-4 py-3 flex justify-between items-center">
-                  <span className="font-semibold">SubTotal</span>
+                  <span className="font-semibold">
+                    Subtotal ({selectedItems.length}/{items.length} selected)
+                  </span>
                   <span className="font-bold text-[color:var(--rp-green)]">
                     Rp{total.toLocaleString('id-ID')}
                   </span>
@@ -280,18 +353,26 @@ export default function CheckoutPage() {
                     Remember my card info
                   </label>
 
-                  {error && <p className="text-sm text-red-600">{error}</p>}
+                {error && <p className="text-sm text-red-600">{error}</p>}
+                {status && !error && <p className="text-sm text-slate-700">{status}</p>}
 
-                  <div className="pt-2">
-                    <button
-                      type="submit"
-                      disabled={paying || loading || items.length === 0}
-                      className="rounded-full bg-[color:var(--rp-green)] text-white font-semibold px-6 py-2 w-full md:w-auto disabled:opacity-60 disabled:cursor-not-allowed"
-                    >
-                      {paying ? 'Processing...' : `Pay Rp${total.toLocaleString('id-ID')}`}
-                    </button>
-                  </div>
-                </form>
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    disabled={paying || loading || items.length === 0 || selectedItems.length === 0}
+                    className="rounded-full bg-[color:var(--rp-green)] text-white font-semibold px-6 py-2 w-full md:w-auto disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {paying ? (
+                      <span className="flex items-center gap-2 justify-center">
+                        <span className="inline-block h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        Processing...
+                      </span>
+                    ) : (
+                      `Pay Rp${total.toLocaleString('id-ID')}`
+                    )}
+                  </button>
+                </div>
+              </form>
               </div>
             </div>
           </div>

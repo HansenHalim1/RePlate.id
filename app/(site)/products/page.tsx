@@ -11,21 +11,16 @@ type Product = Database['public']['Tables']['products']['Row']
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [userId, setUserId] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [banner, setBanner] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null)
+  const [showEmpty, setShowEmpty] = useState(false)
 
   // Load products & user
   useEffect(() => {
     ;(async () => {
       const { data: userData } = await supabaseBrowser.auth.getUser()
       setUserId(userData?.user?.id ?? null)
-
-      const fallback: Product[] = [
-        { id: 'fallback-1', name: 'Lunch Package', price: 15000, created_at: '', updated_at: '', description: null, image_url: '/lunch.webp', category: 'Lunch Package' } as Product,
-        { id: 'fallback-2', name: 'Lunch Package', price: 15000, created_at: '', updated_at: '', description: null, image_url: '/lunch.webp', category: 'Lunch Package' } as Product,
-        { id: 'fallback-3', name: 'Dessert Package', price: 15000, created_at: '', updated_at: '', description: null, image_url: '/lunch.webp', category: 'Dessert Package' } as Product,
-        { id: 'fallback-4', name: 'Bread Package', price: 15000, created_at: '', updated_at: '', description: null, image_url: '/lunch.webp', category: 'Bread Package' } as Product,
-      ]
 
       const { data, error } = await supabaseBrowser
         .from('products')
@@ -34,14 +29,24 @@ export default function ProductsPage() {
         .returns<Product[]>()
 
       if (error) console.error('Error fetching products:', error.message)
-      setProducts((data && data.length > 0 ? data : fallback) ?? fallback)
+      setProducts(data ?? [])
+      setLoading(false)
     })()
   }, [])
 
+  useEffect(() => {
+    if (!loading && products.length === 0) {
+      const timer = setTimeout(() => setShowEmpty(true), 600)
+      return () => clearTimeout(timer)
+    }
+    setShowEmpty(false)
+  }, [loading, products])
+
   // Add to cart
   async function addToCart(productId: string) {
+    setBanner(null)
     if (!userId) {
-      alert('Please log in first!')
+      setBanner({ type: 'info', message: 'Please log in first to add items.' })
       return
     }
 
@@ -53,7 +58,7 @@ export default function ProductsPage() {
 
     if (!session?.access_token) {
       setLoading(false)
-      alert('Session expired. Please log in again.')
+      setBanner({ type: 'error', message: 'Session expired. Please log in again.' })
       return
     }
 
@@ -69,8 +74,8 @@ export default function ProductsPage() {
     const result = await res.json()
     setLoading(false)
 
-    if (res.ok) alert(result.message || 'Added to cart!')
-    else alert(result.error || 'Failed to add')
+    if (res.ok) setBanner({ type: 'success', message: result.message || 'Added to cart!' })
+    else setBanner({ type: 'error', message: result.error || 'Failed to add' })
   }
 
   // Filter products by search
@@ -88,6 +93,24 @@ export default function ProductsPage() {
     <>
       <Navbar />
       <main className="min-h-screen bg-[#f3f3f3] pb-16">
+        {banner && (
+          <div
+            className={`border-b ${
+              banner.type === 'error'
+                ? 'bg-[#fdecea] border-[#f5c2c7] text-[#b02a37]'
+                : banner.type === 'success'
+                  ? 'bg-[#e8f5e9] border-[#c8e6c9] text-[#2e7d32]'
+                  : 'bg-[#eef3ff] border-[#d3ddff] text-[#1e3a8a]'
+            }`}
+          >
+            <div className="rp-shell py-3 text-sm flex items-center gap-2">
+              {loading && (
+                <span className="inline-block h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+              )}
+              {banner.message}
+            </div>
+          </div>
+        )}
         <div className="rp-shell pt-10 space-y-8">
           <div className="bg-[#ededed] border border-[#d5d9dd] rounded-2xl shadow-lg px-5 py-6 text-center">
             <h1 className="text-3xl md:text-4xl font-bold text-slate-800">Products</h1>
@@ -105,8 +128,22 @@ export default function ProductsPage() {
             </div>
           </div>
 
-          {filteredProducts.length === 0 ? (
-            <p className="text-slate-600 text-center">No products found.</p>
+          {loading ? (
+            <div className="text-slate-600 text-center flex items-center justify-center gap-2">
+              <span className="inline-block h-5 w-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+              Loading products...
+            </div>
+          ) : products.length === 0 ? (
+            showEmpty ? (
+              <p className="text-slate-600 text-center">No products found.</p>
+            ) : (
+              <div className="text-slate-600 text-center flex items-center justify-center gap-2">
+                <span className="inline-block h-5 w-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                Loading products...
+              </div>
+            )
+          ) : filteredProducts.length === 0 ? (
+            <p className="text-slate-600 text-center">No products match your search.</p>
           ) : (
             Object.keys(groupedByCategory).map((category) => (
               <section key={category} className="space-y-4">
@@ -128,8 +165,11 @@ export default function ProductsPage() {
                       <button
                         onClick={() => addToCart(p.id)}
                         disabled={loading}
-                        className="mt-4 w-full rounded-xl bg-[color:var(--rp-orange)] text-white font-semibold py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="mt-4 w-full rounded-xl bg-[color:var(--rp-orange)] text-white font-semibold py-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                       >
+                        {loading && (
+                          <span className="inline-block h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        )}
                         {loading ? 'Adding...' : 'Add to Cart'}
                       </button>
                     </div>

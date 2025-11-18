@@ -19,6 +19,10 @@ export default function CartPage() {
   const [loading, setLoading] = useState(true)
   const [userId, setUserId] = useState<string | null>(null)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [banner, setBanner] = useState<{ type: 'error' | 'info'; message: string } | null>(
+    null
+  )
   const router = useRouter()
 
   // Fetch user and cart data
@@ -53,7 +57,9 @@ export default function CartPage() {
         .returns<CartItemRow[]>() // ✅ strong typing
 
       if (error) console.error('Error fetching cart:', error.message)
-      setItems(data ?? [])
+      const rows = data ?? []
+      setItems(rows)
+      setSelectedIds(new Set(rows.map((row) => row.id)))
       setLoading(false)
     }
 
@@ -62,9 +68,10 @@ export default function CartPage() {
 
   // Remove item from cart
   async function removeItem(id: string) {
+    setBanner(null)
     const { error } = await supabaseBrowser.from('cart_items').delete().eq('id', id)
     if (error) {
-      alert('Failed to remove item')
+      setBanner({ type: 'error', message: 'Unable to remove item. Please try again.' })
       console.error(error)
       return
     }
@@ -84,7 +91,7 @@ export default function CartPage() {
     setUpdatingId(null)
 
     if (error) {
-      alert('Failed to update quantity')
+      setBanner({ type: 'error', message: 'Unable to update quantity. Please try again.' })
       console.error(error)
       return
     }
@@ -94,15 +101,35 @@ export default function CartPage() {
     )
   }
 
+  // Toggle selection for checkout
+  const toggleItem = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }
+
+  const selectedItems = items.filter((item) => selectedIds.has(item.id))
+
   // Calculate total
-  const total = items.reduce(
+  const total = selectedItems.reduce(
     (sum, item) => sum + (item.product?.price || 0) * item.quantity,
     0
   )
 
   // Go to checkout
   const goToCheckout = () => {
-    router.push('/checkout')
+    if (selectedItems.length === 0) {
+      setBanner({ type: 'info', message: 'Select at least one item to proceed to checkout.' })
+      return
+    }
+    const ids = selectedItems.map((item) => item.id).join(',')
+    router.push(ids ? `/checkout?items=${encodeURIComponent(ids)}` : '/checkout')
   }
 
   // Render
@@ -110,10 +137,24 @@ export default function CartPage() {
     <>
       <Navbar />
       <main className="min-h-screen bg-white pb-0">
+        {banner && (
+          <div
+            className={`border-b ${
+              banner.type === 'error'
+                ? 'bg-[#fdecea] border-[#f5c2c7] text-[#b02a37]'
+                : 'bg-[#f4f8ec] border-[#d7e7c7] text-[#516029]'
+            }`}
+          >
+            <div className="rp-shell py-3 text-sm">{banner.message}</div>
+          </div>
+        )}
         <div className="bg-[url('/wood-texture.png')] bg-cover bg-center py-8">
           <div className="rp-shell space-y-4">
             {loading ? (
-              <p className="text-white">Loading...</p>
+              <div className="text-white flex items-center gap-2">
+                <span className="inline-block h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Loading your cart...
+              </div>
             ) : items.length === 0 ? (
               <p className="text-white">Your cart is empty.</p>
             ) : (
@@ -126,6 +167,8 @@ export default function CartPage() {
                     <input
                       type="checkbox"
                       className="accent-[color:var(--rp-green)] w-4 h-4"
+                      checked={selectedIds.has(item.id)}
+                      onChange={() => toggleItem(item.id)}
                       aria-label="Select item"
                     />
                     <img
@@ -183,12 +226,16 @@ export default function CartPage() {
           <div className="rp-shell">
             <div className="mx-auto max-w-5xl bg-[#e6e6e6] rounded-2xl border border-[#d7dce4] shadow-lg px-6 py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="text-slate-800 text-sm space-y-1">
-                <div className="font-semibold">Total Product  : {items.length}</div>
-                <div className="font-semibold">Total Price    : Rp{total.toLocaleString('id-ID')}</div>
+                <div className="font-semibold">
+                  Selected Products: {selectedItems.length}/{items.length}
+                </div>
+                <div className="font-semibold">
+                  Total Price: Rp{total.toLocaleString('id-ID')}
+                </div>
               </div>
               <button
                 onClick={goToCheckout}
-                disabled={items.length === 0}
+                disabled={items.length === 0 || selectedItems.length === 0}
                 className="rounded-full bg-[color:var(--rp-green)] text-white font-semibold px-8 py-2 disabled:opacity-50"
               >
                 Checkout
