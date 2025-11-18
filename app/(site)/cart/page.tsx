@@ -18,9 +18,10 @@ export default function CartPage() {
   const [items, setItems] = useState<CartItemRow[]>([])
   const [loading, setLoading] = useState(true)
   const [userId, setUserId] = useState<string | null>(null)
+  const [updatingId, setUpdatingId] = useState<string | null>(null)
   const router = useRouter()
 
-  // 🔐 Fetch user and cart data
+  // Fetch user and cart data
   useEffect(() => {
     const fetchCart = async () => {
       const {
@@ -59,7 +60,7 @@ export default function CartPage() {
     fetchCart()
   }, [router])
 
-  // 🗑 Remove item from cart
+  // Remove item from cart
   async function removeItem(id: string) {
     const { error } = await supabaseBrowser.from('cart_items').delete().eq('id', id)
     if (error) {
@@ -70,82 +71,133 @@ export default function CartPage() {
     setItems((prev) => prev.filter((i) => i.id !== id))
   }
 
-  // 💰 Calculate total
+  // Update quantity
+  async function updateQuantity(id: string, delta: number) {
+    const item = items.find((i) => i.id === id)
+    if (!item) return
+    const nextQty = Math.max(1, item.quantity + delta)
+    setUpdatingId(id)
+    const { error } = await supabaseBrowser
+      .from('cart_items')
+      .update({ quantity: nextQty })
+      .eq('id', id)
+    setUpdatingId(null)
+
+    if (error) {
+      alert('Failed to update quantity')
+      console.error(error)
+      return
+    }
+
+    setItems((prev) =>
+      prev.map((i) => (i.id === id ? { ...i, quantity: nextQty } : i))
+    )
+  }
+
+  // Calculate total
   const total = items.reduce(
     (sum, item) => sum + (item.product?.price || 0) * item.quantity,
     0
   )
 
-  // 💳 Go to checkout
+  // Go to checkout
   const goToCheckout = () => {
     router.push('/checkout')
   }
 
-  // 🧩 Render
+  // Render
   return (
     <>
       <Navbar />
-      <main className="min-h-screen bg-gray-50 py-12 px-4">
-        <div className="mx-auto max-w-5xl bg-white shadow-sm rounded-lg p-6">
-          <h1 className="text-2xl font-semibold mb-6">Your Cart</h1>
-
-          {loading ? (
-            <p>Loading...</p>
-          ) : items.length === 0 ? (
-            <p className="text-slate-600">Your cart is empty.</p>
-          ) : (
-            <div className="space-y-6">
-              {items.map((item) => (
+      <main className="min-h-screen bg-white pb-0">
+        <div className="bg-[url('/wood-texture.png')] bg-cover bg-center py-8">
+          <div className="rp-shell space-y-4">
+            {loading ? (
+              <p className="text-white">Loading...</p>
+            ) : items.length === 0 ? (
+              <p className="text-white">Your cart is empty.</p>
+            ) : (
+              items.map((item) => (
                 <div
                   key={item.id}
-                  className="flex items-center justify-between border-b pb-4 last:border-b-0"
+                  className="mx-auto max-w-5xl bg-white border border-[#d7dce4] rounded-2xl shadow-lg p-4 flex flex-col md:flex-row md:items-center gap-4"
                 >
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-3 md:gap-4 flex-1">
+                    <input
+                      type="checkbox"
+                      className="accent-[color:var(--rp-green)] w-4 h-4"
+                      aria-label="Select item"
+                    />
                     <img
-                      src={item.product?.image_url || '/placeholder.png'}
+                      src={item.product?.image_url || '/lunch.webp'}
                       alt={item.product?.name || 'Product'}
-                      className="h-20 w-20 object-cover rounded"
+                      className="h-16 w-16 object-contain rounded"
                     />
                     <div>
-                      <h3 className="font-medium text-lg">{item.product?.name}</h3>
+                      <h3 className="font-semibold text-lg text-slate-800">
+                        {item.product?.name}
+                      </h3>
                       <p className="text-sm text-slate-600">
                         Rp{item.product?.price?.toLocaleString('id-ID')}
                       </p>
-                      <p className="text-sm text-slate-600">Qty: {item.quantity}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-6">
-                    <p className="font-semibold text-slate-700">
-                      Rp{((item.product?.price || 0) * item.quantity).toLocaleString('id-ID')}
-                    </p>
+
+                  <div className="flex items-center gap-6 justify-between md:justify-end">
+                    <div className="flex items-center gap-3 bg-[#f4f6f8] rounded-full px-3 py-2 border border-[#dfe3e8]">
+                      <button
+                        className="text-lg text-slate-700 disabled:text-slate-400"
+                        onClick={() => updateQuantity(item.id, -1)}
+                        disabled={updatingId === item.id}
+                        aria-label="Decrease quantity"
+                      >
+                        −
+                      </button>
+                      <span className="text-sm font-semibold text-slate-800 w-6 text-center">
+                        {item.quantity}
+                      </span>
+                      <button
+                        className="text-lg text-slate-700 disabled:text-slate-400"
+                        onClick={() => updateQuantity(item.id, 1)}
+                        disabled={updatingId === item.id}
+                        aria-label="Increase quantity"
+                      >
+                        +
+                      </button>
+                    </div>
                     <button
                       onClick={() => removeItem(item.id)}
                       className="text-red-600 hover:text-red-800 transition"
+                      aria-label="Remove item"
                     >
                       <Trash2 className="w-5 h-5" />
                     </button>
                   </div>
                 </div>
-              ))}
-
-              <div className="flex justify-between items-center pt-6 border-t">
-                <span className="text-lg font-medium text-slate-800">Total:</span>
-                <span className="text-xl font-bold text-green-700">
-                  Rp{total.toLocaleString('id-ID')}
-                </span>
-              </div>
-
-              <div className="flex justify-end">
-                <button
-                  onClick={goToCheckout}
-                  className="mt-4 bg-green-700 text-white px-6 py-2 rounded-lg font-medium hover:bg-green-800 transition"
-                >
-                  Checkout
-                </button>
-              </div>
-            </div>
-          )}
+              ))
+            )}
+          </div>
         </div>
+
+        <div className="bg-[#e6e6e6] py-6">
+          <div className="rp-shell">
+            <div className="mx-auto max-w-5xl bg-[#e6e6e6] rounded-2xl border border-[#d7dce4] shadow-lg px-6 py-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="text-slate-800 text-sm space-y-1">
+                <div className="font-semibold">Total Product  : {items.length}</div>
+                <div className="font-semibold">Total Price    : Rp{total.toLocaleString('id-ID')}</div>
+              </div>
+              <button
+                onClick={goToCheckout}
+                disabled={items.length === 0}
+                className="rounded-full bg-[color:var(--rp-green)] text-white font-semibold px-8 py-2 disabled:opacity-50"
+              >
+                Checkout
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-[#8b953d] h-10" />
       </main>
       <Footer />
     </>

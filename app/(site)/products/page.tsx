@@ -14,11 +14,18 @@ export default function ProductsPage() {
   const [loading, setLoading] = useState(false)
   const [search, setSearch] = useState('')
 
-  // 🧠 Load products & user
+  // Load products & user
   useEffect(() => {
     ;(async () => {
       const { data: userData } = await supabaseBrowser.auth.getUser()
       setUserId(userData?.user?.id ?? null)
+
+      const fallback: Product[] = [
+        { id: 'fallback-1', name: 'Lunch Package', price: 15000, created_at: '', updated_at: '', description: null, image_url: '/lunch.webp', category: 'Lunch Package' } as Product,
+        { id: 'fallback-2', name: 'Lunch Package', price: 15000, created_at: '', updated_at: '', description: null, image_url: '/lunch.webp', category: 'Lunch Package' } as Product,
+        { id: 'fallback-3', name: 'Dessert Package', price: 15000, created_at: '', updated_at: '', description: null, image_url: '/lunch.webp', category: 'Dessert Package' } as Product,
+        { id: 'fallback-4', name: 'Bread Package', price: 15000, created_at: '', updated_at: '', description: null, image_url: '/lunch.webp', category: 'Bread Package' } as Product,
+      ]
 
       const { data, error } = await supabaseBrowser
         .from('products')
@@ -27,11 +34,11 @@ export default function ProductsPage() {
         .returns<Product[]>()
 
       if (error) console.error('Error fetching products:', error.message)
-      setProducts(data ?? [])
+      setProducts((data && data.length > 0 ? data : fallback) ?? fallback)
     })()
   }, [])
 
-  // 🛒 Add to cart
+  // Add to cart
   async function addToCart(productId: string) {
     if (!userId) {
       alert('Please log in first!')
@@ -66,57 +73,71 @@ export default function ProductsPage() {
     else alert(result.error || 'Failed to add')
   }
 
-  // 🔍 Filter products by search
+  // Filter products by search
   const filteredProducts = products.filter((p) =>
     p.name.toLowerCase().includes(search.toLowerCase())
   )
 
+  const groupedByCategory = filteredProducts.reduce<Record<string, Product[]>>((acc, item) => {
+    const key = item.category?.trim() || 'Products'
+    acc[key] = acc[key] ? [...acc[key], item] : [item]
+    return acc
+  }, {})
+
   return (
     <>
       <Navbar />
-      <main className="min-h-screen bg-gray-50 py-12 px-4">
-        <div className="mx-auto max-w-6xl">
-          <h1 className="text-3xl font-bold text-center mb-6 text-green-700">Our Products</h1>
-
-          <div className="mb-8 flex justify-center">
-            <input
-              type="text"
-              placeholder="Search products..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full max-w-md border border-slate-300 rounded-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-600"
-            />
+      <main className="min-h-screen bg-[#f3f3f3] pb-16">
+        <div className="rp-shell pt-10 space-y-8">
+          <div className="bg-[#ededed] border border-[#d5d9dd] rounded-2xl shadow-lg px-5 py-6 text-center">
+            <h1 className="text-3xl md:text-4xl font-bold text-slate-800">Products</h1>
+            <p className="text-slate-600 mt-2 text-sm md:text-base">Search flavors, menus, or categories</p>
+            <div className="mt-6 flex justify-center">
+              <div className="w-full max-w-3xl">
+                <input
+                  type="text"
+                  placeholder="Search a flavors, menu, or categories"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full rounded-full border border-[#d2d6db] bg-white px-6 py-3 text-[15px] shadow-lg focus:ring-2 focus:ring-[color:var(--rp-green)]"
+                />
+              </div>
+            </div>
           </div>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {filteredProducts.length === 0 ? (
-              <p className="text-slate-600 col-span-full text-center">No products found.</p>
-            ) : (
-              filteredProducts.map((p) => (
-                <div
-                  key={p.id}
-                  className="bg-white rounded-xl shadow p-4 text-center border hover:shadow-md transition"
-                >
-                  <img
-                    src={p.image_url || '/placeholder.png'}
-                    alt={p.name}
-                    className="mx-auto h-40 object-contain"
-                  />
-                  <h3 className="mt-3 font-medium text-lg">{p.name}</h3>
-                  <p className="text-green-700 font-semibold mt-1">
-                    Rp{p.price.toLocaleString('id-ID')}
-                  </p>
-                  <button
-                    onClick={() => addToCart(p.id)}
-                    disabled={loading}
-                    className="mt-4 w-full bg-green-700 text-white font-medium py-2 rounded hover:bg-green-800 transition disabled:opacity-50"
-                  >
-                    {loading ? 'Adding...' : 'Add to Cart'}
-                  </button>
+          {filteredProducts.length === 0 ? (
+            <p className="text-slate-600 text-center">No products found.</p>
+          ) : (
+            Object.keys(groupedByCategory).map((category) => (
+              <section key={category} className="space-y-4">
+                <h2 className="text-2xl font-semibold text-slate-800">{category}</h2>
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {groupedByCategory[category].map((p) => (
+                    <div key={p.id} className="rounded-[18px] bg-white border border-[#e1e3e6] shadow-lg p-4 text-center hover:shadow-2xl transition">
+                      <div className="w-full h-40 flex items-center justify-center">
+                        <img
+                          src={p.image_url || '/lunch.webp'}
+                          alt={p.name}
+                          className="h-full object-contain"
+                        />
+                      </div>
+                      <h3 className="mt-3 font-semibold text-slate-800">{p.name}</h3>
+                      <p className="text-[color:var(--rp-green)] font-semibold mt-1">
+                        Rp{p.price.toLocaleString('id-ID')}
+                      </p>
+                      <button
+                        onClick={() => addToCart(p.id)}
+                        disabled={loading}
+                        className="mt-4 w-full rounded-xl bg-[color:var(--rp-orange)] text-white font-semibold py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {loading ? 'Adding...' : 'Add to Cart'}
+                      </button>
+                    </div>
+                  ))}
                 </div>
-              ))
-            )}
-          </div>
+              </section>
+            ))
+          )}
         </div>
       </main>
       <Footer />

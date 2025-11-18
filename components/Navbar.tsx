@@ -29,59 +29,48 @@ export default function Navbar() {
     router.push('/')
   }
 
-  const navLinks: { href: string; label: string }[] = [
-    { href: '/', label: 'Home' },
-    { href: '/about', label: 'About Us' },
-    { href: '/products', label: 'Products' },
-  ]
-
   return (
-    <header className="sticky top-0 z-40 bg-white shadow-sm border-b">
-      <div className="mx-auto max-w-6xl px-4 h-16 flex items-center justify-between">
-        {/* Logo */}
-        <Link href="/" className="flex items-center gap-2">
-          <img src="/logo.png" alt="RePlate.id logo" className="h-10 w-auto" />
+    <header className="sticky top-0 z-50 bg-[#e5e5e5] border-b border-[#d4d4d4]">
+      <div className="rp-shell h-[70px] flex items-center justify-between">
+        <Link href="/" className="flex items-center gap-3">
+          <img src="/logo.png" alt="RePlate.id logo" className="h-12 w-auto" />
           <div className="flex flex-col leading-tight">
-            <span className="font-bold text-orange-600 text-lg">RePlate.id</span>
-            <span className="text-xs text-slate-600">No Plates Left Behind</span>
+            <span className="font-bold text-[#f7931d] text-base">RePlate.id</span>
+            <span className="text-[11px] text-slate-600">No Plates Left Behind</span>
           </div>
         </Link>
 
-        {/* Desktop navigation */}
-        <nav className="hidden md:flex items-center gap-8 font-medium text-sm">
-          {navLinks.map((link) => (
+        <nav className="hidden md:flex items-center gap-10 text-sm text-slate-800">
+          {[
+            { href: '/', label: 'Home' },
+            { href: '/#about', label: 'About Us' },
+            { href: '/products', label: 'Products' },
+          ].map((link) => (
             <Link
               key={link.href}
               href={link.href}
-              className={`transition ${
-                pathname === link.href
-                  ? 'text-green-700 font-semibold'
-                  : 'text-slate-700 hover:text-green-700'
-              }`}
+              className="transition hover:text-[color:var(--rp-green)]"
             >
               {link.label}
             </Link>
           ))}
           <Link
             href="/cart"
-            className={`hover:text-green-700 transition flex items-center ${
-              pathname === '/cart' ? 'text-green-700' : 'text-slate-700'
+            className={`transition flex items-center ${
+              pathname === '/cart' ? 'text-[color:var(--rp-green)]' : 'text-slate-700'
             }`}
           >
             <ShoppingCart className="w-5 h-5" />
           </Link>
         </nav>
 
-        {/* Auth buttons */}
         <div className="hidden md:flex items-center gap-3">
           {user ? (
             <>
-              <span className="text-sm text-slate-700 truncate max-w-[120px]">
-                Hi, {user.email}
-              </span>
+              <span className="text-sm text-slate-700 truncate max-w-[140px]">Hi, {user.email}</span>
               <button
                 onClick={handleLogout}
-                className="text-sm font-medium px-4 py-1 rounded-full border border-green-700 text-green-700 hover:bg-green-700 hover:text-white transition"
+                className="rounded-full bg-[color:var(--rp-green)] text-[#2e2e2e] text-sm font-semibold px-5 py-2"
               >
                 Logout
               </button>
@@ -90,13 +79,13 @@ export default function Navbar() {
             <>
               <Link
                 href="/login"
-                className="bg-green-700 text-white text-sm font-medium px-4 py-1 rounded-full hover:bg-green-800 transition"
+                className="rounded-full bg-[color:var(--rp-green)] text-[#2e2e2e] text-sm font-semibold px-4 py-2"
               >
                 Log In
               </Link>
               <Link
                 href="/signup"
-                className="text-sm font-medium px-4 py-1 rounded-full border border-green-700 text-green-700 hover:bg-green-700 hover:text-white transition"
+                className="rounded-full border border-[#7d8d2a] text-slate-800 text-sm font-semibold px-4 py-2 bg-white"
               >
                 Sign Up
               </Link>
@@ -106,22 +95,27 @@ export default function Navbar() {
       </div>
 
       {/* Mobile nav */}
-      <div className="md:hidden border-t bg-white">
-        <div className="flex justify-around py-2 text-sm">
-          {navLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={`${
-                pathname === link.href ? 'text-green-700 font-semibold' : 'text-slate-700'
-              }`}
-            >
-              {link.label}
+      <div className="md:hidden border-t border-[#d4d4d4] bg-[#f1f1f1]">
+        <div className="rp-shell py-2 flex items-center justify-between text-sm font-medium text-slate-800">
+          <div className="flex items-center gap-4">
+            <Link href="/" className="hover:text-[color:var(--rp-green)]">Home</Link>
+            <Link href="/products" className="hover:text-[color:var(--rp-green)]">Products</Link>
+            <Link href="/#about" className="hover:text-[color:var(--rp-green)]">About</Link>
+          </div>
+          <div className="flex items-center gap-3">
+            <Link href="/cart" className="text-slate-800 hover:text-[color:var(--rp-green)]">
+              <ShoppingCart className="w-5 h-5" />
             </Link>
-          ))}
-          <Link href="/cart">
-            <ShoppingCart className="w-5 h-5 text-slate-700" />
-          </Link>
+            {user ? (
+              <button onClick={handleLogout} className="text-[color:var(--rp-green)] font-semibold">
+                Logout
+              </button>
+            ) : (
+              <Link href="/login" className="text-[color:var(--rp-green)] font-semibold">
+                Log In
+              </Link>
+            )}
+          </div>
         </div>
       </div>
     </header>
