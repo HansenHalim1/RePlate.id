@@ -28,7 +28,7 @@ function LoginContent() {
     setLoading(true)
     setError(null)
 
-    const { error } = await supabaseBrowser.auth.signInWithPassword({
+    const { data, error } = await supabaseBrowser.auth.signInWithPassword({
       email,
       password,
     })
@@ -40,8 +40,11 @@ function LoginContent() {
       return
     }
 
-    const destination = role === 'customer' ? '/' : `/portal?role=${role}`
-    router.push(destination)
+    const roleFromProfile =
+      (data.user?.user_metadata?.role as 'customer' | 'seller' | undefined) ?? role
+
+    // Sellers also land on the storefront since the portal page was removed
+    router.push(`/?role=${roleFromProfile}`)
   }
 
   return (

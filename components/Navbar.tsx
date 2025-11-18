@@ -19,6 +19,16 @@ export default function Navbar() {
       setUser(res.data?.user ?? null)
     }
     fetchUser()
+
+    const { data: authListener } = supabaseBrowser.auth.onAuthStateChange(
+      (_event, session) => {
+        setUser(session?.user ?? null)
+      }
+    )
+
+    return () => {
+      authListener?.subscription.unsubscribe()
+    }
   }, [])
 
   // Logout handler
