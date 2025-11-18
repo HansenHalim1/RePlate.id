@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
@@ -25,6 +25,14 @@ const MIDTRANS_CLIENT_KEY =
   process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY || process.env.NEXT_PUBLIC_CLIENT
 
 export default function CheckoutPage() {
+  return (
+    <Suspense fallback={<div className="rp-shell py-10 text-slate-600">Loading checkout...</div>}>
+      <CheckoutContent />
+    </Suspense>
+  )
+}
+
+function CheckoutContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [items, setItems] = useState<CartItemRow[]>([])

@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}))
     const itemIds: string[] | undefined = Array.isArray(body?.itemIds)
-      ? body.itemIds.filter((v) => typeof v === 'string')
+      ? (body.itemIds as unknown[]).filter((v): v is string => typeof v === 'string')
       : undefined
 
     const authHeader = req.headers.get('authorization') || ''
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const query = supabase
+    const { data: cartItems, error: cartError } = await supabase
       .from('cart_items')
       .select(
         `
@@ -56,22 +56,21 @@ export async function POST(req: NextRequest) {
       .eq('user_id', user.id)
       .returns<CartItemWithProductPrice[]>()
 
-    if (itemIds && itemIds.length > 0) {
-      query.in('id', itemIds)
-    }
-
-    const { data: cartItems, error: cartError } = await query
-
     if (cartError) {
       console.error('Error fetching cart for checkout:', cartError)
       return NextResponse.json({ error: 'Unable to prepare checkout' }, { status: 500 })
     }
 
-    if (!cartItems || cartItems.length === 0) {
+    const filteredItems =
+      itemIds && itemIds.length > 0
+        ? (cartItems ?? []).filter((item) => itemIds.includes(item.id))
+        : cartItems ?? []
+
+    if (filteredItems.length === 0) {
       return NextResponse.json({ error: 'Cart selection is empty' }, { status: 400 })
     }
 
-    const computedTotal = cartItems.reduce((sum, item) => {
+    const computedTotal = filteredItems.reduce((sum, item) => {
       const price = item.product?.price ?? 0
       return sum + price * item.quantity
     }, 0)
@@ -84,7 +83,7 @@ export async function POST(req: NextRequest) {
     const orderId = `ORDER-${crypto.randomUUID()}`
 
     const itemDetails =
-      cartItems?.map((item, idx) => ({
+      filteredItems.map((item, idx) => ({
         id: item.product?.name ? item.product.name.slice(0, 20) : `item-${idx + 1}`,
         price: item.product?.price ?? 0,
         quantity: item.quantity,
