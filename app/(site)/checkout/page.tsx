@@ -12,12 +12,27 @@ type CartItemRow = Database['public']['Tables']['cart_items']['Row'] & {
   product: Product | null
 }
 
+declare global {
+  interface Window {
+    snap?: {
+      pay: (token: string, options?: Record<string, any>) => void
+    }
+  }
+}
+
+const SNAP_JS_URL = 'https://app.sandbox.midtrans.com/snap/snap.js'
+const MIDTRANS_CLIENT_KEY =
+  process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY || process.env.NEXT_PUBLIC_CLIENT
+
 export default function CheckoutPage() {
   const router = useRouter()
   const [items, setItems] = useState<CartItemRow[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedPayment, setSelectedPayment] = useState<'bank' | 'card'>('bank')
   const [rememberCard, setRememberCard] = useState(true)
+  const [paying, setPaying] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [snapReady, setSnapReady] = useState(false)
 
   // Load cart for summary
   useEffect(() => {
@@ -56,11 +71,89 @@ export default function CheckoutPage() {
     fetchCart()
   }, [router])
 
+  // Load Midtrans Snap JS once
+  useEffect(() => {
+    if (!MIDTRANS_CLIENT_KEY) {
+      console.error('Missing Midtrans client key')
+      return
+    }
+
+    const existing = document.querySelector<HTMLScriptElement>(`script[src="${SNAP_JS_URL}"]`)
+    if (existing) {
+      setSnapReady(true)
+      return
+    }
+
+    const script = document.createElement('script')
+    script.src = SNAP_JS_URL
+    script.async = true
+    script.setAttribute('data-client-key', MIDTRANS_CLIENT_KEY)
+    script.onload = () => setSnapReady(true)
+    script.onerror = () => setError('Failed to load payment gateway. Please refresh and try again.')
+    document.body.appendChild(script)
+  }, [MIDTRANS_CLIENT_KEY])
+
   const total = items.reduce((sum, item) => sum + (item.product?.price || 0) * item.quantity, 0)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    alert('Payment flow coming soon. We will plug Midtrans or another gateway here.')
+    setError(null)
+
+    if (!MIDTRANS_CLIENT_KEY) {
+      setError('Payment gateway is not configured.')
+      return
+    }
+
+    if (!snapReady || !window.snap) {
+      setError('Payment popup is not ready yet. Please wait a moment and try again.')
+      return
+    }
+
+    setPaying(true)
+
+    try {
+      const { data: sessionData } = await supabaseBrowser.auth.getSession()
+      const accessToken = sessionData.session?.access_token
+      if (!accessToken) {
+        setPaying(false)
+        router.push('/login')
+        return
+      }
+
+      const res = await fetch('/api/payments/create', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      })
+
+      const json = await res.json()
+      if (!res.ok || !json?.token) {
+        throw new Error(json?.error || 'Unable to start payment.')
+      }
+
+      window.snap.pay(json.token, {
+        onSuccess: () => {
+          setPaying(false)
+          router.push('/?payment=success')
+        },
+        onPending: () => {
+          setPaying(false)
+          router.push('/?payment=pending')
+        },
+        onError: () => {
+          setPaying(false)
+          setError('Payment failed. Please try again.')
+        },
+        onClose: () => {
+          setPaying(false)
+          setError('Payment popup was closed before finishing.')
+        },
+      })
+    } catch (err: any) {
+      setPaying(false)
+      setError(err?.message || 'Unable to start payment.')
+    }
   }
 
   return (
@@ -187,9 +280,15 @@ export default function CheckoutPage() {
                     Remember my card info
                   </label>
 
+                  {error && <p className="text-sm text-red-600">{error}</p>}
+
                   <div className="pt-2">
-                    <button type="submit" className="rounded-full bg-[color:var(--rp-green)] text-white font-semibold px-6 py-2 w-full md:w-auto">
-                      Rp{total.toLocaleString('id-ID')}
+                    <button
+                      type="submit"
+                      disabled={paying || loading || items.length === 0}
+                      className="rounded-full bg-[color:var(--rp-green)] text-white font-semibold px-6 py-2 w-full md:w-auto disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {paying ? 'Processing...' : `Pay Rp${total.toLocaleString('id-ID')}`}
                     </button>
                   </div>
                 </form>

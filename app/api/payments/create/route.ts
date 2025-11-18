@@ -3,11 +3,14 @@ import crypto from 'crypto'
 import type { Database } from '@/lib/supabase.types'
 import { supabaseServer } from '@/lib/supabase-server'
 
-const MIDTRANS_SERVER_KEY = process.env.MIDTRANS_SERVER_KEY
-const MIDTRANS_CLIENT_KEY = process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY
+const MIDTRANS_SERVER_KEY =
+  process.env.MIDTRANS_SERVER_KEY || process.env.SECRET || process.env.MIDTRANS_WEBHOOK_SECRET
+const MIDTRANS_CLIENT_KEY =
+  process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY || process.env.NEXT_PUBLIC_CLIENT
+const MIDTRANS_SNAP_URL = 'https://app.sandbox.midtrans.com/snap/v1/transactions'
 
 type CartItemWithProductPrice = Database['public']['Tables']['cart_items']['Row'] & {
-  product: Pick<Database['public']['Tables']['products']['Row'], 'price'> | null
+  product: Pick<Database['public']['Tables']['products']['Row'], 'price' | 'name'> | null
 }
 
 export async function POST(req: NextRequest) {
@@ -39,7 +42,8 @@ export async function POST(req: NextRequest) {
         `
         quantity,
         product:products (
-          price
+          price,
+          name
         )
       `
       )
@@ -63,19 +67,27 @@ export async function POST(req: NextRequest) {
 
     const orderId = `ORDER-${crypto.randomUUID()}`
 
+    const itemDetails =
+      cartItems?.map((item, idx) => ({
+        id: item.product?.name ? item.product.name.slice(0, 20) : `item-${idx + 1}`,
+        price: item.product?.price ?? 0,
+        quantity: item.quantity,
+        name: item.product?.name ?? 'Product',
+      })) ?? []
+
     const payload = {
       transaction_details: {
         order_id: orderId,
         gross_amount: grossAmount,
       },
+      item_details: itemDetails,
       customer_details: {
-        user_id: user.id,
         email: user.email,
       },
     }
 
     const midtransResponse = await fetch(
-      'https://app.sandbox.midtrans.com/snap/v1/transactions',
+      MIDTRANS_SNAP_URL,
       {
         method: 'POST',
         headers: {
