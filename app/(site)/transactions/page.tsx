@@ -40,9 +40,12 @@ export default function TransactionsPage() {
           created_at,
           items:order_items (
             id,
+            order_id,
+            product_id,
             product_name,
             product_price,
-            quantity
+            quantity,
+            created_at
           )
         `
         )

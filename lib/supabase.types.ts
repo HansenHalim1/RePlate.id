@@ -118,6 +118,41 @@ export type Database = {
           }
         ]
       }
+      product_ratings: {
+        Row: {
+          created_at: string | null
+          id: string
+          product_id: string | null
+          rating: number
+          review: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          product_id?: string | null
+          rating: number
+          review?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          product_id?: string | null
+          rating?: number
+          review?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_ratings_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       products: {
         Row: {
           category: string | null
