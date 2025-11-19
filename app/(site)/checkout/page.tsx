@@ -175,7 +175,7 @@ function CheckoutContent() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${accessToken}`,
         },
-        body: JSON.stringify({ itemIds: selectedItemIds }),
+        body: JSON.stringify({ itemIds: selectedItemIds, paymentMethod: selectedPayment }),
       })
 
       const json = await res.json()

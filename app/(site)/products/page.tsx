@@ -4,17 +4,21 @@ import { useEffect, useState } from 'react'
 import { supabaseBrowser } from '@/lib/supabase-browser'
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
+import RatingStars from '@/components/RatingStars'
 import type { Database } from '@/lib/supabase.types'
 
 type Product = Database['public']['Tables']['products']['Row']
+type ProductDisplay = Product & { description?: string | null; hotel?: string | null }
 
 export default function ProductsPage() {
-  const [products, setProducts] = useState<Product[]>([])
+  const [products, setProducts] = useState<ProductDisplay[]>([])
   const [userId, setUserId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [banner, setBanner] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null)
   const [showEmpty, setShowEmpty] = useState(false)
+  const [ratingSummary, setRatingSummary] = useState<Record<string, { average: number; count: number }>>({})
+  const [ratingBusy, setRatingBusy] = useState<string | null>(null)
 
   // Load products & user
   useEffect(() => {
@@ -29,7 +33,9 @@ export default function ProductsPage() {
         .returns<Product[]>()
 
       if (error) console.error('Error fetching products:', error.message)
-      setProducts(data ?? [])
+      const payload = (data as ProductDisplay[]) ?? []
+      setProducts(payload)
+      fetchRatingSummary(payload)
       setLoading(false)
     })()
   }, [])
@@ -41,6 +47,26 @@ export default function ProductsPage() {
     }
     setShowEmpty(false)
   }, [loading, products])
+
+  async function fetchRatingSummary(list: ProductDisplay[]) {
+    const ids = list.map((p) => p.id).filter(Boolean)
+    if (ids.length === 0) return
+
+    try {
+      const res = await fetch('/api/ratings/summary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productIds: ids }),
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        setRatingSummary(data)
+      }
+    } catch (error) {
+      console.error('Failed to fetch rating summary', error)
+    }
+  }
 
   // Add to cart
   async function addToCart(productId: string) {
@@ -78,12 +104,49 @@ export default function ProductsPage() {
     else setBanner({ type: 'error', message: result.error || 'Failed to add' })
   }
 
+  async function handleRate(productId: string, ratingValue: number) {
+    if (!userId) {
+      setBanner({ type: 'info', message: 'Please log in to rate products.' })
+      return
+    }
+
+    const {
+      data: { session },
+    } = await supabaseBrowser.auth.getSession()
+
+    if (!session?.access_token) {
+      setBanner({ type: 'error', message: 'Session expired. Please log in again.' })
+      return
+    }
+
+    setRatingBusy(productId)
+
+    const res = await fetch('/api/ratings', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ productId, rating: ratingValue }),
+    })
+
+    setRatingBusy(null)
+
+    if (res.ok) {
+      fetchRatingSummary(products)
+      setBanner({ type: 'success', message: 'Rating submitted!' })
+    } else {
+      const error = await res.json().catch(() => ({}))
+      setBanner({ type: 'error', message: error.error || 'Failed to submit rating.' })
+    }
+  }
+
   // Filter products by search
   const filteredProducts = products.filter((p) =>
     p.name.toLowerCase().includes(search.toLowerCase())
   )
 
-  const groupedByCategory = filteredProducts.reduce<Record<string, Product[]>>((acc, item) => {
+  const groupedByCategory = filteredProducts.reduce<Record<string, ProductDisplay[]>>((acc, item) => {
     const key = item.category?.trim() || 'Products'
     acc[key] = acc[key] ? [...acc[key], item] : [item]
     return acc
@@ -159,6 +222,19 @@ export default function ProductsPage() {
                         />
                       </div>
                       <h3 className="mt-3 font-semibold text-slate-800">{p.name}</h3>
+                      <p className="text-sm text-slate-600">
+                        {p.description || p.hotel || 'RePlate.id Partner Hotel'}
+                      </p>
+                      <div className="mt-2 flex flex-col items-center gap-1">
+                        <RatingStars
+                          value={ratingSummary[p.id]?.average ?? 0}
+                          count={ratingSummary[p.id]?.count ?? 0}
+                          interactive={!!userId}
+                          busy={ratingBusy === p.id}
+                          onRate={(value) => handleRate(p.id, value)}
+                        />
+                        {!userId && <span className="text-xs text-slate-500">Log in to rate</span>}
+                      </div>
                       <p className="text-[color:var(--rp-green)] font-semibold mt-1">
                         Rp{p.price.toLocaleString('id-ID')}
                       </p>

@@ -50,11 +50,12 @@ export default function Navbar() {
           </div>
         </Link>
 
-        <nav className="hidden md:flex items-center gap-10 text-sm text-slate-800">
+        <nav className="hidden md:flex items-center gap-8 text-sm text-slate-800">
           {[
             { href: '/', label: 'Home' },
             { href: '/#about', label: 'About Us' },
             { href: '/products', label: 'Products' },
+            { href: '/transactions', label: 'Transactions' },
           ].map((link) => (
             <Link
               key={link.href}
@@ -110,6 +111,7 @@ export default function Navbar() {
           <div className="flex items-center gap-4">
             <Link href="/" className="hover:text-[color:var(--rp-green)]">Home</Link>
             <Link href="/products" className="hover:text-[color:var(--rp-green)]">Products</Link>
+            <Link href="/transactions" className="hover:text-[color:var(--rp-green)]">Transactions</Link>
             <Link href="/#about" className="hover:text-[color:var(--rp-green)]">About</Link>
           </div>
           <div className="flex items-center gap-3">

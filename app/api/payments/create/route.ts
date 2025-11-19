@@ -19,6 +19,8 @@ export async function POST(req: NextRequest) {
     const itemIds: string[] | undefined = Array.isArray(body?.itemIds)
       ? (body.itemIds as unknown[]).filter((v): v is string => typeof v === 'string')
       : undefined
+    const paymentMethod =
+      typeof body?.paymentMethod === 'string' ? (body.paymentMethod as string) : 'bank'
 
     const authHeader = req.headers.get('authorization') || ''
     const accessToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null
@@ -121,6 +123,15 @@ export async function POST(req: NextRequest) {
 
     const data = await midtransResponse.json()
 
+    const itemsToInsert =
+      filteredItems?.map((item) => ({
+        order_id: orderId,
+        product_id: item.product_id,
+        product_name: item.product?.name ?? null,
+        product_price: item.product?.price ?? null,
+        quantity: item.quantity,
+      })) ?? []
+
     const { error: insertError } = await supabase
       .from('orders')
       .insert({
@@ -128,11 +139,22 @@ export async function POST(req: NextRequest) {
         user_id: user.id,
         total: grossAmount,
         status: 'pending',
-      } as Database['public']['Tables']['orders']['Insert'])
+        payment_method: paymentMethod,
+      } as Database['public']['Tables']['orders']['Insert'] & { payment_method?: string | null })
 
     if (insertError) {
       console.error('Failed to persist order:', insertError)
       return NextResponse.json({ error: 'Unable to record order' }, { status: 500 })
+    }
+
+    if (itemsToInsert.length > 0) {
+      const { error: itemsError } = await supabase
+        .from('order_items')
+        .insert(itemsToInsert as Database['public']['Tables']['order_items']['Insert'][] )
+
+      if (itemsError) {
+        console.error('Failed to save order items:', itemsError)
+      }
     }
 
     return NextResponse.json({

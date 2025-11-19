@@ -6,6 +6,7 @@ import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
 import type { Database } from '@/lib/supabase.types'
 import HotDealsRibbon from '@/components/HotDealsRibbon'
+import RatingStars from '@/components/RatingStars'
 
 /** ✅ Type definitions based on Supabase schema */
 type Product = Database['public']['Tables']['products']['Row']
@@ -17,6 +18,8 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true)
   const [banner, setBanner] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null)
   const [showEmpty, setShowEmpty] = useState(false)
+  const [ratingSummary, setRatingSummary] = useState<Record<string, { average: number; count: number }>>({})
+  const [ratingBusy, setRatingBusy] = useState<string | null>(null)
 
   // Fetch user and a few featured products
   useEffect(() => {
@@ -24,7 +27,11 @@ export default function HomePage() {
       const { data: userData } = await supabaseBrowser.auth.getUser()
       setUserId(userData?.user?.id ?? null)
 
-      const fallback: ProductDisplay[] = []
+      const fallback: ProductDisplay[] = [
+        { id: 'demo-1', name: 'Lunch Package', price: 35000, description: 'Hotel Horison, Jakarta', image_url: '/lunch.webp', category: 'Lunch' } as ProductDisplay,
+        { id: 'demo-2', name: 'Lunch Package', price: 30000, description: 'Hotel Amaris, Jakarta', image_url: '/lunch.webp', category: 'Lunch' } as ProductDisplay,
+        { id: 'demo-3', name: 'Lunch Package', price: 30000, description: 'Hotel Aryaduta, Jakarta', image_url: '/lunch.webp', category: 'Lunch' } as ProductDisplay,
+      ]
 
       const { data, error } = await supabaseBrowser
         .from('products')
@@ -33,7 +40,12 @@ export default function HomePage() {
         .returns<Product[]>() // ✅ full typing
 
       if (error) console.error('Error fetching products:', error.message)
-      setProducts(((data && data.length > 0 ? data : fallback) ?? fallback) as ProductDisplay[])
+      const usedFallback = !data || data.length === 0
+      const payload = (usedFallback ? fallback : data) as ProductDisplay[]
+      setProducts(payload)
+      if (!usedFallback) {
+        fetchRatingSummary(payload)
+      }
       setLoading(false)
     })()
   }, [])
@@ -45,6 +57,62 @@ export default function HomePage() {
     }
     setShowEmpty(false)
   }, [loading, products])
+
+  async function fetchRatingSummary(list: ProductDisplay[]) {
+    const ids = list.map((p) => p.id).filter(Boolean)
+    if (ids.length === 0) return
+
+    try {
+      const res = await fetch('/api/ratings/summary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productIds: ids }),
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        setRatingSummary(data)
+      }
+    } catch (error) {
+      console.error('Failed to fetch rating summary', error)
+    }
+  }
+
+  async function handleRate(productId: string, ratingValue: number) {
+    if (!userId) {
+      alert('Please log in to rate products.')
+      return
+    }
+
+    const {
+      data: { session },
+    } = await supabaseBrowser.auth.getSession()
+
+    if (!session?.access_token) {
+      alert('Session expired. Please log in again.')
+      return
+    }
+
+    setRatingBusy(productId)
+
+    const res = await fetch('/api/ratings', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ productId, rating: ratingValue }),
+    })
+
+    setRatingBusy(null)
+
+    if (res.ok) {
+      fetchRatingSummary(products)
+    } else {
+      const error = await res.json().catch(() => ({}))
+      alert(error.error || 'Failed to submit rating.')
+    }
+  }
 
   // Add product to cart
   async function addToCart(productId: string) {
@@ -151,6 +219,16 @@ export default function HomePage() {
                     <p className="text-sm text-slate-600">
                       {(p as ProductDisplay).description || (p as ProductDisplay).hotel || 'Hotel Horison, Jakarta'}
                     </p>
+                    <div className="mt-3 flex flex-col items-center gap-1">
+                      <RatingStars
+                        value={ratingSummary[p.id]?.average ?? 0}
+                        count={ratingSummary[p.id]?.count ?? 0}
+                        interactive={!!userId}
+                        busy={ratingBusy === p.id}
+                        onRate={(value) => handleRate(p.id, value)}
+                      />
+                      {!userId && <span className="text-xs text-slate-500">Log in to rate</span>}
+                    </div>
                     <p className="text-[color:var(--rp-green)] font-bold mt-4 text-lg">
                       Rp{p.price.toLocaleString('id-ID')}
                     </p>
