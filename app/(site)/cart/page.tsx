@@ -76,6 +76,7 @@ export default function CartPage() {
       return
     }
     setItems((prev) => prev.filter((i) => i.id !== id))
+    if (typeof window !== 'undefined') window.dispatchEvent(new Event('cart-updated'))
   }
 
   // Update quantity
@@ -99,6 +100,7 @@ export default function CartPage() {
     setItems((prev) =>
       prev.map((i) => (i.id === id ? { ...i, quantity: nextQty } : i))
     )
+    if (typeof window !== 'undefined') window.dispatchEvent(new Event('cart-updated'))
   }
 
   // Toggle selection for checkout

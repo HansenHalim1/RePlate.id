@@ -18,7 +18,12 @@ export default function ProductsPage() {
   const [banner, setBanner] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null)
   const [showEmpty, setShowEmpty] = useState(false)
   const [ratingSummary, setRatingSummary] = useState<Record<string, { average: number; count: number }>>({})
-  const [ratingBusy, setRatingBusy] = useState<string | null>(null)
+
+  const notifyCartChange = () => {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('cart-updated'))
+    }
+  }
 
   // Load products & user
   useEffect(() => {
@@ -100,45 +105,10 @@ export default function ProductsPage() {
     const result = await res.json()
     setLoading(false)
 
-    if (res.ok) setBanner({ type: 'success', message: result.message || 'Added to cart!' })
-    else setBanner({ type: 'error', message: result.error || 'Failed to add' })
-  }
-
-  async function handleRate(productId: string, ratingValue: number) {
-    if (!userId) {
-      setBanner({ type: 'info', message: 'Please log in to rate products.' })
-      return
-    }
-
-    const {
-      data: { session },
-    } = await supabaseBrowser.auth.getSession()
-
-    if (!session?.access_token) {
-      setBanner({ type: 'error', message: 'Session expired. Please log in again.' })
-      return
-    }
-
-    setRatingBusy(productId)
-
-    const res = await fetch('/api/ratings', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({ productId, rating: ratingValue }),
-    })
-
-    setRatingBusy(null)
-
     if (res.ok) {
-      fetchRatingSummary(products)
-      setBanner({ type: 'success', message: 'Rating submitted!' })
-    } else {
-      const error = await res.json().catch(() => ({}))
-      setBanner({ type: 'error', message: error.error || 'Failed to submit rating.' })
-    }
+      setBanner({ type: 'success', message: result.message || 'Added to cart!' })
+      notifyCartChange()
+    } else setBanner({ type: 'error', message: result.error || 'Failed to add' })
   }
 
   // Filter products by search
@@ -229,11 +199,8 @@ export default function ProductsPage() {
                         <RatingStars
                           value={ratingSummary[p.id]?.average ?? 0}
                           count={ratingSummary[p.id]?.count ?? 0}
-                          interactive={!!userId}
-                          busy={ratingBusy === p.id}
-                          onRate={(value) => handleRate(p.id, value)}
                         />
-                        {!userId && <span className="text-xs text-slate-500">Log in to rate</span>}
+                        <span className="text-xs text-slate-500">Can only rate after the product is bought.</span>
                       </div>
                       <p className="text-[color:var(--rp-green)] font-semibold mt-1">
                         Rp{p.price.toLocaleString('id-ID')}

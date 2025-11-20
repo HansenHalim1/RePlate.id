@@ -13,6 +13,14 @@ export default function Navbar() {
   const [user, setUser] = useState<User | null>(null)
   const [cartCount, setCartCount] = useState<number>(0)
 
+  const fetchCartCount = async (userId: string) => {
+    const { count } = await supabaseBrowser
+      .from('cart_items')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+    setCartCount(count ?? 0)
+  }
+
   // Fetch logged-in user once on mount
   useEffect(() => {
     const fetchUser = async () => {
@@ -40,13 +48,35 @@ export default function Navbar() {
     }
   }, [])
 
-  const fetchCartCount = async (userId: string) => {
-    const { count } = await supabaseBrowser
-      .from('cart_items')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', userId)
-    setCartCount(count ?? 0)
-  }
+  // Poll + refetch on focus to keep cart count fresh without realtime
+  useEffect(() => {
+    if (!user?.id) {
+      setCartCount(0)
+      return
+    }
+
+    let cancelled = false
+    const refresh = async () => {
+      if (cancelled) return
+      await fetchCartCount(user.id)
+    }
+
+    refresh()
+
+    const onFocus = () => refresh()
+    const onCartEvent = () => refresh()
+    window.addEventListener('focus', onFocus)
+    window.addEventListener('cart-updated', onCartEvent as EventListener)
+
+    const interval = setInterval(refresh, 20_000) // light polling
+
+    return () => {
+      cancelled = true
+      window.removeEventListener('focus', onFocus)
+       window.removeEventListener('cart-updated', onCartEvent as EventListener)
+      clearInterval(interval)
+    }
+  }, [user?.id])
 
   // Logout handler
   const handleLogout = async () => {

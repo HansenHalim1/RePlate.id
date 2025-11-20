@@ -19,7 +19,6 @@ export default function HomePage() {
   const [banner, setBanner] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null)
   const [showEmpty, setShowEmpty] = useState(false)
   const [ratingSummary, setRatingSummary] = useState<Record<string, { average: number; count: number }>>({})
-  const [ratingBusy, setRatingBusy] = useState<string | null>(null)
 
   // Fetch user and a few featured products
   useEffect(() => {
@@ -58,6 +57,12 @@ export default function HomePage() {
     setShowEmpty(false)
   }, [loading, products])
 
+  const notifyCartChange = () => {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('cart-updated'))
+    }
+  }
+
   async function fetchRatingSummary(list: ProductDisplay[]) {
     const ids = list.map((p) => p.id).filter(Boolean)
     if (ids.length === 0) return
@@ -75,42 +80,6 @@ export default function HomePage() {
       }
     } catch (error) {
       console.error('Failed to fetch rating summary', error)
-    }
-  }
-
-  async function handleRate(productId: string, ratingValue: number) {
-    if (!userId) {
-      alert('Please log in to rate products.')
-      return
-    }
-
-    const {
-      data: { session },
-    } = await supabaseBrowser.auth.getSession()
-
-    if (!session?.access_token) {
-      alert('Session expired. Please log in again.')
-      return
-    }
-
-    setRatingBusy(productId)
-
-    const res = await fetch('/api/ratings', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({ productId, rating: ratingValue }),
-    })
-
-    setRatingBusy(null)
-
-    if (res.ok) {
-      fetchRatingSummary(products)
-    } else {
-      const error = await res.json().catch(() => ({}))
-      alert(error.error || 'Failed to submit rating.')
     }
   }
 
@@ -146,8 +115,10 @@ export default function HomePage() {
     const result = await res.json()
     setLoading(false)
 
-    if (res.ok) setBanner({ type: 'success', message: result.message || 'Added to cart!' })
-    else setBanner({ type: 'error', message: result.error || 'Failed to add item' })
+    if (res.ok) {
+      setBanner({ type: 'success', message: result.message || 'Added to cart!' })
+      notifyCartChange()
+    } else setBanner({ type: 'error', message: result.error || 'Failed to add item' })
   }
 
   return (
@@ -223,11 +194,8 @@ export default function HomePage() {
                       <RatingStars
                         value={ratingSummary[p.id]?.average ?? 0}
                         count={ratingSummary[p.id]?.count ?? 0}
-                        interactive={!!userId}
-                        busy={ratingBusy === p.id}
-                        onRate={(value) => handleRate(p.id, value)}
                       />
-                      {!userId && <span className="text-xs text-slate-500">Log in to rate</span>}
+                      <span className="text-xs text-slate-500">Can only rate after the product is bought.</span>
                     </div>
                     <p className="text-[color:var(--rp-green)] font-bold mt-4 text-lg">
                       Rp{p.price.toLocaleString('id-ID')}
