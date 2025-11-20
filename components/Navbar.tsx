@@ -11,18 +11,27 @@ export default function Navbar() {
   const pathname = usePathname()
   const router = useRouter()
   const [user, setUser] = useState<User | null>(null)
+  const [cartCount, setCartCount] = useState<number>(0)
 
   // Fetch logged-in user once on mount
   useEffect(() => {
     const fetchUser = async () => {
       const res = await supabaseBrowser.auth.getUser()
       setUser(res.data?.user ?? null)
+      if (res.data?.user) {
+        fetchCartCount(res.data.user.id)
+      }
     }
     fetchUser()
 
     const { data: authListener } = supabaseBrowser.auth.onAuthStateChange(
       (_event, session) => {
         setUser(session?.user ?? null)
+        if (session?.user) {
+          fetchCartCount(session.user.id)
+        } else {
+          setCartCount(0)
+        }
       }
     )
 
@@ -30,6 +39,14 @@ export default function Navbar() {
       authListener?.subscription.unsubscribe()
     }
   }, [])
+
+  const fetchCartCount = async (userId: string) => {
+    const { count } = await supabaseBrowser
+      .from('cart_items')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+    setCartCount(count ?? 0)
+  }
 
   // Logout handler
   const handleLogout = async () => {
@@ -67,11 +84,16 @@ export default function Navbar() {
           ))}
           <Link
             href="/cart"
-            className={`transition flex items-center ${
+            className={`relative transition flex items-center ${
               pathname === '/cart' ? 'text-[color:var(--rp-green)]' : 'text-slate-700'
             }`}
           >
             <ShoppingCart className="w-5 h-5" />
+            {cartCount > 0 && (
+              <span className="absolute -right-3 -top-2 h-4 min-w-[16px] rounded-full bg-[color:var(--rp-green)] text-white text-[10px] font-semibold flex items-center justify-center px-1">
+                {cartCount}
+              </span>
+            )}
           </Link>
         </nav>
 
@@ -115,8 +137,13 @@ export default function Navbar() {
             <Link href="/#about" className="hover:text-[color:var(--rp-green)]">About</Link>
           </div>
           <div className="flex items-center gap-3">
-            <Link href="/cart" className="text-slate-800 hover:text-[color:var(--rp-green)]">
+            <Link href="/cart" className="relative text-slate-800 hover:text-[color:var(--rp-green)]">
               <ShoppingCart className="w-5 h-5" />
+              {cartCount > 0 && (
+                <span className="absolute -right-3 -top-2 h-4 min-w-[16px] rounded-full bg-[color:var(--rp-green)] text-white text-[10px] font-semibold flex items-center justify-center px-1">
+                  {cartCount}
+                </span>
+              )}
             </Link>
             {user ? (
               <button onClick={handleLogout} className="text-[color:var(--rp-green)] font-semibold">
