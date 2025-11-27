@@ -6,6 +6,7 @@ import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
 import RatingStars from '@/components/RatingStars'
 import type { Database } from '@/lib/supabase.types'
+import Link from 'next/link'
 
 type Product = Database['public']['Tables']['products']['Row']
 type ProductDisplay = Product & { description?: string | null; hotel?: string | null }
@@ -184,17 +185,19 @@ export default function ProductsPage() {
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
                   {groupedByCategory[category].map((p) => (
                     <div key={p.id} className="rounded-[18px] bg-white border border-[#e1e3e6] shadow-lg p-4 text-center hover:shadow-2xl transition">
-                      <div className="w-full h-40 flex items-center justify-center">
-                        <img
-                          src={p.image_url || '/lunch.webp'}
-                          alt={p.name}
-                          className="h-full object-contain"
-                        />
-                      </div>
-                      <h3 className="mt-3 font-semibold text-slate-800">{p.name}</h3>
-                      <p className="text-sm text-slate-600">
-                        {p.description || p.hotel || 'RePlate.id Partner Hotel'}
-                      </p>
+                      <Link href={`/products/${p.id}`} className="block">
+                        <div className="w-full h-40 flex items-center justify-center">
+                          <img
+                            src={p.image_url || '/lunch.webp'}
+                            alt={p.name}
+                            className="h-full object-contain"
+                          />
+                        </div>
+                        <h3 className="mt-3 font-semibold text-slate-800 hover:text-[color:var(--rp-green)] transition">{p.name}</h3>
+                        <p className="text-sm text-slate-600">
+                          {p.description || p.hotel || 'RePlate.id Partner Hotel'}
+                        </p>
+                      </Link>
                       <div className="mt-2 flex flex-col items-center gap-1">
                         <RatingStars
                           value={ratingSummary[p.id]?.average ?? 0}
@@ -205,16 +208,24 @@ export default function ProductsPage() {
                       <p className="text-[color:var(--rp-green)] font-semibold mt-1">
                         Rp{p.price.toLocaleString('id-ID')}
                       </p>
-                      <button
-                        onClick={() => addToCart(p.id)}
-                        disabled={loading}
-                        className="mt-4 w-full rounded-xl bg-[color:var(--rp-orange)] text-white font-semibold py-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                      >
-                        {loading && (
-                          <span className="inline-block h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        )}
-                        {loading ? 'Adding...' : 'Add to Cart'}
-                      </button>
+                      <div className="mt-4 grid grid-cols-2 gap-2">
+                        <button
+                          onClick={() => addToCart(p.id)}
+                          disabled={loading}
+                          className="w-full rounded-xl bg-[color:var(--rp-orange)] text-white font-semibold py-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        >
+                          {loading && (
+                            <span className="inline-block h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          )}
+                          {loading ? 'Adding...' : 'Add to Cart'}
+                        </button>
+                        <Link
+                          href={`/products/${p.id}`}
+                          className="w-full rounded-xl border border-[#d7dce4] text-slate-800 font-semibold py-2 flex items-center justify-center bg-white hover:border-[color:var(--rp-green)]"
+                        >
+                          Details
+                        </Link>
+                      </div>
                     </div>
                   ))}
                 </div>

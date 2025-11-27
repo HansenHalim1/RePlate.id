@@ -5,13 +5,21 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { supabaseBrowser } from '@/lib/supabase-browser'
 import type { User } from '@supabase/supabase-js'
-import { ShoppingCart } from 'lucide-react'
+import { Menu, ShoppingCart, X } from 'lucide-react'
 
 export default function Navbar() {
   const pathname = usePathname()
   const router = useRouter()
   const [user, setUser] = useState<User | null>(null)
   const [cartCount, setCartCount] = useState<number>(0)
+  const [mobileOpen, setMobileOpen] = useState(false)
+
+  const navLinks = [
+    { href: '/', label: 'Home' },
+    { href: '/#about', label: 'About Us' },
+    { href: '/products', label: 'Products' },
+    { href: '/transactions', label: 'Transactions' },
+  ]
 
   const fetchCartCount = async (userId: string) => {
     const { count } = await supabaseBrowser
@@ -73,10 +81,15 @@ export default function Navbar() {
     return () => {
       cancelled = true
       window.removeEventListener('focus', onFocus)
-       window.removeEventListener('cart-updated', onCartEvent as EventListener)
+      window.removeEventListener('cart-updated', onCartEvent as EventListener)
       clearInterval(interval)
     }
   }, [user?.id])
+
+  // Close the drawer when navigating
+  useEffect(() => {
+    setMobileOpen(false)
+  }, [pathname])
 
   // Logout handler
   const handleLogout = async () => {
@@ -88,7 +101,7 @@ export default function Navbar() {
 
   return (
     <header className="sticky top-0 z-50 bg-[#e5e5e5] border-b border-[#d4d4d4]">
-      <div className="rp-shell h-[70px] flex items-center justify-between">
+      <div className="rp-shell h-[70px] flex items-center justify-between gap-3">
         <Link href="/" className="flex items-center gap-3">
           <img src="/logo.png" alt="RePlate.id logo" className="h-12 w-auto" />
           <div className="flex flex-col leading-tight">
@@ -98,12 +111,7 @@ export default function Navbar() {
         </Link>
 
         <nav className="hidden md:flex items-center gap-8 text-sm text-slate-800">
-          {[
-            { href: '/', label: 'Home' },
-            { href: '/#about', label: 'About Us' },
-            { href: '/products', label: 'Products' },
-            { href: '/transactions', label: 'Transactions' },
-          ].map((link) => (
+          {navLinks.map((link) => (
             <Link
               key={link.href}
               href={link.href}
@@ -155,38 +163,116 @@ export default function Navbar() {
             </>
           )}
         </div>
+
+        {/* Compact top-row for mobile */}
+        <div className="flex items-center gap-2 md:hidden">
+          <Link
+            href="/cart"
+            className="relative text-slate-800 hover:text-[color:var(--rp-green)]"
+            aria-label="Cart"
+          >
+            <ShoppingCart className="w-5 h-5" />
+            {cartCount > 0 && (
+              <span className="absolute -right-3 -top-2 h-4 min-w-[16px] rounded-full bg-[color:var(--rp-green)] text-white text-[10px] font-semibold flex items-center justify-center px-1">
+                {cartCount}
+              </span>
+            )}
+          </Link>
+          <button
+            type="button"
+            onClick={() => setMobileOpen((prev) => !prev)}
+            className="rounded-full border border-[#c8c8c8] bg-white p-2 text-slate-800 hover:text-[color:var(--rp-green)]"
+            aria-expanded={mobileOpen}
+            aria-label="Toggle navigation"
+          >
+            {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
+        </div>
       </div>
 
-      {/* Mobile nav */}
-      <div className="md:hidden border-t border-[#d4d4d4] bg-[#f1f1f1]">
-        <div className="rp-shell py-2 flex items-center justify-between text-sm font-medium text-slate-800">
-          <div className="flex items-center gap-4">
-            <Link href="/" className="hover:text-[color:var(--rp-green)]">Home</Link>
-            <Link href="/products" className="hover:text-[color:var(--rp-green)]">Products</Link>
-            <Link href="/transactions" className="hover:text-[color:var(--rp-green)]">Transactions</Link>
-            <Link href="/#about" className="hover:text-[color:var(--rp-green)]">About</Link>
+      {/* Mobile drawer */}
+      <div
+        className={`md:hidden border-t border-[#d4d4d4] bg-[#f7f7f7] transition-[max-height,opacity] duration-300 ${
+          mobileOpen ? 'max-h-[520px] opacity-100' : 'max-h-0 opacity-0 pointer-events-none'
+        }`}
+      >
+        <div className="rp-shell py-4 flex flex-col gap-4 text-sm font-medium text-slate-800">
+          <div className="grid grid-cols-2 gap-3">
+            {navLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                onClick={() => setMobileOpen(false)}
+                className="flex items-center justify-between rounded-xl border border-[#dcdcdc] bg-white px-3 py-2 hover:border-[color:var(--rp-green)] transition"
+              >
+                <span>{link.label}</span>
+                <span className="text-[11px] uppercase tracking-wide text-slate-500">Go</span>
+              </Link>
+            ))}
           </div>
-          <div className="flex items-center gap-3">
-            <Link href="/cart" className="relative text-slate-800 hover:text-[color:var(--rp-green)]">
-              <ShoppingCart className="w-5 h-5" />
+
+          <div className="flex items-center justify-between rounded-xl border border-[#dcdcdc] bg-white px-3 py-2">
+            <div className="flex flex-col">
+              <span className="text-[11px] uppercase tracking-wide text-slate-500">Cart</span>
+              <span className="text-sm font-semibold text-slate-800">
+                {cartCount > 0 ? `${cartCount} item${cartCount > 1 ? 's' : ''}` : 'Empty'}
+              </span>
+            </div>
+            <Link
+              href="/cart"
+              className="relative rounded-full border border-[#7d8d2a] text-[color:var(--rp-green)] px-3 py-1 flex items-center gap-2"
+            >
+              <ShoppingCart className="w-4 h-4" />
+              <span className="text-xs font-semibold">View</span>
               {cartCount > 0 && (
-                <span className="absolute -right-3 -top-2 h-4 min-w-[16px] rounded-full bg-[color:var(--rp-green)] text-white text-[10px] font-semibold flex items-center justify-center px-1">
+                <span className="absolute -right-2 -top-2 h-4 min-w-[16px] rounded-full bg-[color:var(--rp-green)] text-white text-[10px] font-semibold flex items-center justify-center px-1">
                   {cartCount}
                 </span>
               )}
             </Link>
+          </div>
+
+          <div className="flex flex-col gap-2">
             {user ? (
-              <button onClick={handleLogout} className="text-[color:var(--rp-green)] font-semibold">
-                Logout
-              </button>
+              <>
+                <span className="text-xs text-slate-600 truncate">
+                  Signed in as {user.email}
+                </span>
+                <button
+                  onClick={handleLogout}
+                  className="rounded-full bg-[color:var(--rp-green)] text-white font-semibold px-5 py-2 w-full"
+                >
+                  Logout
+                </button>
+              </>
             ) : (
-              <Link href="/login" className="text-[color:var(--rp-green)] font-semibold">
-                Log In
-              </Link>
+              <>
+                <Link
+                  href="/login"
+                  className="rounded-full bg-[color:var(--rp-green)] text-white text-center font-semibold px-5 py-2 w-full"
+                >
+                  Log In
+                </Link>
+                <Link
+                  href="/signup"
+                  className="rounded-full border border-[color:var(--rp-green)] text-[color:var(--rp-green)] text-center font-semibold px-5 py-2 w-full bg-white"
+                >
+                  Sign Up
+                </Link>
+              </>
             )}
           </div>
         </div>
       </div>
+
+      {mobileOpen && (
+        <button
+          type="button"
+          aria-label="Close navigation overlay"
+          className="md:hidden fixed inset-0 z-40 bg-black/10"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
     </header>
   )
 }

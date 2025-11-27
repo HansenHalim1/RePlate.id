@@ -37,8 +37,6 @@ function CheckoutContent() {
   const searchParams = useSearchParams()
   const [items, setItems] = useState<CartItemRow[]>([])
   const [loading, setLoading] = useState(true)
-  const [selectedPayment, setSelectedPayment] = useState<'bank' | 'card'>('bank')
-  const [rememberCard, setRememberCard] = useState(true)
   const [paying, setPaying] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [status, setStatus] = useState<string | null>(null)
@@ -175,7 +173,7 @@ function CheckoutContent() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${accessToken}`,
         },
-        body: JSON.stringify({ itemIds: selectedItemIds, paymentMethod: selectedPayment }),
+        body: JSON.stringify({ itemIds: selectedItemIds, paymentMethod: 'snap' }),
       })
 
       const json = await res.json()
@@ -282,105 +280,33 @@ function CheckoutContent() {
                 </div>
               </div>
 
-              {/* Payment form */}
+              {/* Payment actions */}
               <div className="p-6 md:p-8 space-y-6 bg-[#f3f3f3]">
-                <div className="space-y-1">
-                  <p className="text-sm font-semibold text-[color:var(--rp-green)]">Select your payment method</p>
-                  <label className="flex items-center gap-2 text-sm text-slate-800 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="payment"
-                      value="bank"
-                      checked={selectedPayment === 'bank'}
-                      onChange={() => setSelectedPayment('bank')}
-                      className="accent-[color:var(--rp-green)]"
-                    />
-                    Bank Transfer
-                  </label>
-                  <label className="flex items-center gap-2 text-sm text-slate-800 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="payment"
-                      value="card"
-                      checked={selectedPayment === 'card'}
-                      onChange={() => setSelectedPayment('card')}
-                      className="accent-[color:var(--rp-green)]"
-                    />
-                    Card / Credit Card
-                  </label>
-                </div>
-
                 <form onSubmit={handleSubmit} className="space-y-5">
-                  <div className="grid sm:grid-cols-2 gap-4">
-                    <div className="space-y-1 sm:col-span-2">
-                      <label className="text-xs font-semibold text-slate-700">JOHN DOE WIJAYA</label>
-                      <input
-                        type="text"
-                        className="w-full border-0 border-b border-[#c3c7be] bg-transparent px-2 py-2 focus:ring-0 focus:border-[color:var(--rp-green)]"
-                        placeholder="NAME ON CARD"
-                        required={selectedPayment === 'card'}
-                      />
-                    </div>
-                    <div className="space-y-1 sm:col-span-2">
-                      <label className="text-xs font-semibold text-slate-700">1234 - 5678 - 9870 - 1011</label>
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        className="w-full border-0 border-b border-[#c3c7be] bg-transparent px-2 py-2 focus:ring-0 focus:border-[color:var(--rp-green)]"
-                        placeholder="CARD NUMBER"
-                        required={selectedPayment === 'card'}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-semibold text-slate-700">12 / 26</label>
-                      <input
-                        type="text"
-                        className="w-full border-0 border-b border-[#c3c7be] bg-transparent px-2 py-2 focus:ring-0 focus:border-[color:var(--rp-green)]"
-                        placeholder="EXPIRATION DATE"
-                        required={selectedPayment === 'card'}
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-xs font-semibold text-slate-700">***</label>
-                      <input
-                        type="password"
-                        className="w-full border-0 border-b border-[#c3c7be] bg-transparent px-2 py-2 focus:ring-0 focus:border-[color:var(--rp-green)]"
-                        placeholder="CVC"
-                        required={selectedPayment === 'card'}
-                      />
-                    </div>
+                  <p className="text-sm text-slate-700">
+                    Click pay to open the secure Midtrans Snap popup and choose your payment there.
+                  </p>
+
+                  {error && <p className="text-sm text-red-600">{error}</p>}
+                  {status && !error && <p className="text-sm text-slate-700">{status}</p>}
+
+                  <div className="pt-2">
+                    <button
+                      type="submit"
+                      disabled={paying || loading || items.length === 0 || selectedItems.length === 0}
+                      className="rounded-full bg-[color:var(--rp-green)] text-white font-semibold px-6 py-2 w-full md:w-auto disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {paying ? (
+                        <span className="flex items-center gap-2 justify-center">
+                          <span className="inline-block h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          Processing...
+                        </span>
+                      ) : (
+                        `Pay Rp${total.toLocaleString('id-ID')}`
+                      )}
+                    </button>
                   </div>
-
-                  <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={rememberCard}
-                      onChange={(e) => setRememberCard(e.target.checked)}
-                      className="accent-[color:var(--rp-green)]"
-                    />
-                    Remember my card info
-                  </label>
-
-                {error && <p className="text-sm text-red-600">{error}</p>}
-                {status && !error && <p className="text-sm text-slate-700">{status}</p>}
-
-                <div className="pt-2">
-                  <button
-                    type="submit"
-                    disabled={paying || loading || items.length === 0 || selectedItems.length === 0}
-                    className="rounded-full bg-[color:var(--rp-green)] text-white font-semibold px-6 py-2 w-full md:w-auto disabled:opacity-60 disabled:cursor-not-allowed"
-                  >
-                    {paying ? (
-                      <span className="flex items-center gap-2 justify-center">
-                        <span className="inline-block h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        Processing...
-                      </span>
-                    ) : (
-                      `Pay Rp${total.toLocaleString('id-ID')}`
-                    )}
-                  </button>
-                </div>
-              </form>
+                </form>
               </div>
             </div>
           </div>

@@ -162,7 +162,7 @@ export default function HomePage() {
         <section className="mt-0 pb-12">
           <div className="rp-shell relative pt-14 sm:pt-16">
             <HotDealsRibbon />
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
               {loading ? (
                 <div className="col-span-full flex justify-center items-center gap-2 text-slate-600">
                   <span className="inline-block h-5 w-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
@@ -183,13 +183,15 @@ export default function HomePage() {
                     key={p.id}
                     className="bg-white rounded-[18px] shadow-[0_15px_35px_rgba(0,0,0,0.08)] border border-[#e8e8e8] p-6 text-center transition"
                   >
-                    <div className="w-full h-40 flex items-center justify-center">
-                      <img src={p.image_url || '/lunch.webp'} alt={p.name} className="h-full object-contain" />
-                    </div>
-                    <h3 className="mt-4 font-bold text-xl text-slate-900">{p.name}</h3>
-                    <p className="text-sm text-slate-600">
-                      {(p as ProductDisplay).description || (p as ProductDisplay).hotel || 'Hotel Horison, Jakarta'}
-                    </p>
+                    <a href={`/products/${p.id}`} className="block">
+                      <div className="w-full h-40 flex items-center justify-center">
+                        <img src={p.image_url || '/lunch.webp'} alt={p.name} className="h-full object-contain" />
+                      </div>
+                      <h3 className="mt-4 font-bold text-xl text-slate-900 hover:text-[color:var(--rp-green)] transition">{p.name}</h3>
+                      <p className="text-sm text-slate-600">
+                        {(p as ProductDisplay).description || (p as ProductDisplay).hotel || 'Hotel Horison, Jakarta'}
+                      </p>
+                    </a>
                     <div className="mt-3 flex flex-col items-center gap-1">
                       <RatingStars
                         value={ratingSummary[p.id]?.average ?? 0}

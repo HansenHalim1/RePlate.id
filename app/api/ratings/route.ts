@@ -9,9 +9,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { productId, rating, review } = await req.json().catch(() => ({}))
+  const { productId, orderId, rating, review } = await req.json().catch(() => ({}))
 
-  if (!productId || typeof rating !== 'number' || rating < 1 || rating > 5) {
+  if (!productId || !orderId || typeof rating !== 'number' || rating < 1 || rating > 5) {
     return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
   }
 
@@ -24,14 +24,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  // Ensure the user has a paid order containing this product
-  const { data: purchases, error: purchaseError } = await supabase
+  // Validate the user bought the item in this paid order
+  const query = supabase
     .from('orders')
     .select('id,status,order_items!inner(product_id)')
     .eq('user_id', user.id)
     .eq('status', 'paid')
     .eq('order_items.product_id', productId)
-    .limit(1)
+    .eq('id', orderId)
+
+  const { data: purchases, error: purchaseError } = await query.limit(1)
 
   if (purchaseError) {
     console.error('Failed to validate purchase', purchaseError)
@@ -40,7 +42,7 @@ export async function POST(req: NextRequest) {
 
   if (!purchases || purchases.length === 0) {
     return NextResponse.json(
-      { error: 'You can only rate products you have purchased and paid for.' },
+      { error: 'You can only rate products from paid orders that include this item.' },
       { status: 403 }
     )
   }
@@ -49,12 +51,13 @@ export async function POST(req: NextRequest) {
     .from('product_ratings')
     .upsert(
       {
+        order_id: orderId,
         product_id: productId,
         user_id: user.id,
         rating,
         review: review ?? null,
       },
-      { onConflict: 'product_id,user_id' }
+      { onConflict: 'order_id,product_id,user_id' }
     )
 
   if (error) {

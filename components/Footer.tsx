@@ -4,7 +4,7 @@ export default function Footer() {
       <div className="rp-shell py-8 flex flex-col items-center text-center gap-3 text-sm text-slate-700">
         <img src="/logo.png" alt="RePlate.id logo" className="h-12 w-auto" />
         <div className="text-[15px] font-semibold text-slate-800">Contact Us</div>
-        <div className="flex items-center gap-3 text-[15px]">
+        <div className="flex flex-wrap items-center justify-center gap-3 text-[15px]">
           <a href="https://facebook.com" target="_blank" rel="noreferrer" className="text-[color:var(--rp-green)]">
             <span className="sr-only">Facebook</span>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M22 12.07C22 6.48 17.52 2 11.93 2S2 6.48 2 12.07c0 4.99 3.66 9.13 8.44 9.93v-7.03H8.08v-2.9h2.36V9.41c0-2.33 1.39-3.62 3.52-3.62.7 0 1.45.12 2.15.22v2.36h-1.21c-1.19 0-1.56.74-1.56 1.5v1.8h2.65l-.42 2.9h-2.23V22c4.78-.8 8.44-4.94 8.44-9.93Z"/></svg>

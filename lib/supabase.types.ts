@@ -1,4 +1,4 @@
-export type Json =
+﻿export type Json =
   | string
   | number
   | boolean
@@ -46,33 +46,6 @@ export type Database = {
           },
         ]
       }
-      orders: {
-        Row: {
-          created_at: string | null
-          id: string
-          payment_method: string | null
-          status: string | null
-          total: number
-          user_id: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          id: string
-          payment_method?: string | null
-          status?: string | null
-          total: number
-          user_id?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          payment_method?: string | null
-          status?: string | null
-          total?: number
-          user_id?: string | null
-        }
-        Relationships: []
-      }
       order_items: {
         Row: {
           created_at: string | null
@@ -115,65 +88,111 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "products"
             referencedColumns: ["id"]
-          }
+          },
         ]
       }
-      product_ratings: {
+      orders: {
         Row: {
           created_at: string | null
           id: string
-          product_id: string | null
-          rating: number
-          review: string | null
+          payment_method: string | null
+          status: string | null
+          total: number
           user_id: string | null
         }
         Insert: {
           created_at?: string | null
-          id?: string
-          product_id?: string | null
-          rating: number
-          review?: string | null
+          id: string
+          payment_method?: string | null
+          status?: string | null
+          total: number
           user_id?: string | null
         }
         Update: {
           created_at?: string | null
           id?: string
-          product_id?: string | null
-          rating?: number
-          review?: string | null
+          payment_method?: string | null
+          status?: string | null
+          total?: number
           user_id?: string | null
         }
+        Relationships: []
+      }
+      product_ratings: {
+        Row: {
+          created_at: string
+          id: string
+          order_id: string | null
+          product_id: string
+          rating: number
+          review: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          order_id?: string | null
+          product_id: string
+          rating: number
+          review?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          order_id?: string | null
+          product_id?: string
+          rating?: number
+          review?: string | null
+          user_id?: string
+        }
         Relationships: [
+          {
+            foreignKeyName: "product_ratings_order_fk"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "product_ratings_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
             referencedColumns: ["id"]
-          }
+          },
         ]
       }
       products: {
         Row: {
           category: string | null
+          hotel: string | null
           id: string
           image_url: string | null
           name: string
           price: number
+          rating_average: number | null
+          rating_count: number | null
         }
         Insert: {
           category?: string | null
+          hotel?: string | null
           id?: string
           image_url?: string | null
           name: string
           price: number
+          rating_average?: number | null
+          rating_count?: number | null
         }
         Update: {
           category?: string | null
+          hotel?: string | null
           id?: string
           image_url?: string | null
           name?: string
           price?: number
+          rating_average?: number | null
+          rating_count?: number | null
         }
         Relationships: []
       }

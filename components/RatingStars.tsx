@@ -30,11 +30,12 @@ export default function RatingStars({
             <button
               key={star}
               type="button"
-              className="p-0"
+              className="p-1 -m-1"
               disabled={busy}
               onMouseEnter={() => setHover(star)}
               onMouseLeave={() => setHover(null)}
               onClick={() => !busy && onRate?.(star)}
+              aria-label={`Rate ${star} star${star > 1 ? 's' : ''}`}
             >
               <Star className="h-4 w-4" strokeWidth={1.5} color={color} fill={color} />
             </button>
