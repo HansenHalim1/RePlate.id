@@ -7,10 +7,16 @@ import Footer from '@/components/Footer'
 import type { Database } from '@/lib/supabase.types'
 import HotDealsRibbon from '@/components/HotDealsRibbon'
 import RatingStars from '@/components/RatingStars'
+import { buildProductDescription } from '@/lib/descriptions'
 
 /** ✅ Type definitions based on Supabase schema */
 type Product = Database['public']['Tables']['products']['Row']
 type ProductDisplay = Product & { description?: string | null; hotel?: string | null }
+
+const withDescription = (p: ProductDisplay): ProductDisplay => ({
+  ...p,
+  description: buildProductDescription(p),
+})
 
 export default function HomePage() {
   const [products, setProducts] = useState<ProductDisplay[]>([])
@@ -41,9 +47,10 @@ export default function HomePage() {
       if (error) console.error('Error fetching products:', error.message)
       const usedFallback = !data || data.length === 0
       const payload = (usedFallback ? fallback : data) as ProductDisplay[]
-      setProducts(payload)
+      const normalized = payload.map(withDescription)
+      setProducts(normalized)
       if (!usedFallback) {
-        fetchRatingSummary(payload)
+        fetchRatingSummary(normalized)
       }
       setLoading(false)
     })()

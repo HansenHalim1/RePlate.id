@@ -7,9 +7,15 @@ import Footer from '@/components/Footer'
 import RatingStars from '@/components/RatingStars'
 import type { Database } from '@/lib/supabase.types'
 import Link from 'next/link'
+import { buildProductDescription } from '@/lib/descriptions'
 
 type Product = Database['public']['Tables']['products']['Row']
 type ProductDisplay = Product & { description?: string | null; hotel?: string | null }
+
+const withDescription = (p: ProductDisplay): ProductDisplay => ({
+  ...p,
+  description: buildProductDescription(p),
+})
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<ProductDisplay[]>([])
@@ -39,7 +45,7 @@ export default function ProductsPage() {
         .returns<Product[]>()
 
       if (error) console.error('Error fetching products:', error.message)
-      const payload = (data as ProductDisplay[]) ?? []
+      const payload = ((data as ProductDisplay[]) ?? []).map(withDescription)
       setProducts(payload)
       fetchRatingSummary(payload)
       setLoading(false)

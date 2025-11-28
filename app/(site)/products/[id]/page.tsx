@@ -7,6 +7,7 @@ import Footer from '@/components/Footer'
 import RatingStars from '@/components/RatingStars'
 import { supabaseBrowser } from '@/lib/supabase-browser'
 import type { Database } from '@/lib/supabase.types'
+import { buildProductDescription } from '@/lib/descriptions'
 
 /** Types aligned to Supabase schema */
 type Product = Database['public']['Tables']['products']['Row']
@@ -16,6 +17,11 @@ type Order = Database['public']['Tables']['orders']['Row']
 type OrderItem = Database['public']['Tables']['order_items']['Row']
 
 type EligibleOrder = Pick<Order, 'id' | 'created_at'>
+
+const withDescription = (p: ProductDisplay): ProductDisplay => ({
+  ...p,
+  description: buildProductDescription(p),
+})
 
 export default function ProductDetailPage() {
   const params = useParams<{ id: string }>()
@@ -59,7 +65,8 @@ export default function ProductDetailPage() {
 
       const user = userData?.user ?? null
       setUserId(user?.id ?? null)
-      setProduct((productRes.data as ProductDisplay | null) ?? null)
+      const rawProduct = (productRes.data as ProductDisplay | null) ?? null
+      setProduct(rawProduct ? withDescription(rawProduct) : null)
       setReviews((reviewsRes.data as RatingRow[] | null) ?? [])
 
       if (user?.id) {
