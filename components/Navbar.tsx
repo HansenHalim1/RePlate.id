@@ -99,6 +99,11 @@ export default function Navbar() {
     router.push('/')
   }
 
+  const handleNavigate = (href: string) => {
+    setMobileOpen(false)
+    router.push(href)
+  }
+
   return (
     <header className="sticky top-0 z-50 bg-[#e5e5e5] border-b border-[#d4d4d4]">
       <div className="rp-shell h-[70px] flex items-center justify-between gap-3">
@@ -192,7 +197,7 @@ export default function Navbar() {
 
       {/* Mobile drawer */}
       <div
-        className={`md:hidden border-t border-[#d4d4d4] bg-[#f7f7f7] transition-[max-height,opacity] duration-300 ${
+        className={`md:hidden relative z-50 border-t border-[#d4d4d4] bg-[#f7f7f7] transition-[max-height,opacity] duration-300 ${
           mobileOpen ? 'max-h-[520px] opacity-100' : 'max-h-0 opacity-0 pointer-events-none'
         }`}
       >
@@ -202,7 +207,10 @@ export default function Navbar() {
               <Link
                 key={link.href}
                 href={link.href}
-                onClick={() => setMobileOpen(false)}
+                onClick={(e) => {
+                  e.preventDefault()
+                  handleNavigate(link.href)
+                }}
                 className="flex items-center justify-between rounded-xl border border-[#dcdcdc] bg-white px-3 py-2 hover:border-[color:var(--rp-green)] transition"
               >
                 <span>{link.label}</span>
@@ -269,7 +277,7 @@ export default function Navbar() {
         <button
           type="button"
           aria-label="Close navigation overlay"
-          className="md:hidden fixed inset-0 z-40 bg-black/10"
+          className="md:hidden fixed inset-0 z-30 bg-black/10"
           onClick={() => setMobileOpen(false)}
         />
       )}
