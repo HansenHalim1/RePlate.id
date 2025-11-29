@@ -8,14 +8,16 @@ import type { Database } from '@/lib/supabase.types'
 import HotDealsRibbon from '@/components/HotDealsRibbon'
 import RatingStars from '@/components/RatingStars'
 import { buildProductDescription } from '@/lib/descriptions'
+import { buildAllergenInfo } from '@/lib/allergens'
 
 /** ✅ Type definitions based on Supabase schema */
 type Product = Database['public']['Tables']['products']['Row']
-type ProductDisplay = Product & { description?: string | null; hotel?: string | null }
+type ProductDisplay = Product & { description?: string | null; hotel?: string | null; allergen?: string | null }
 
 const withDescription = (p: ProductDisplay): ProductDisplay => ({
   ...p,
   description: buildProductDescription(p),
+  allergen: buildAllergenInfo(p),
 })
 
 export default function HomePage() {
@@ -200,6 +202,9 @@ export default function HomePage() {
                       </p>
                     </a>
                     <div className="mt-3 flex flex-col items-center gap-1">
+                      <p className="text-[11px] text-slate-500">
+                        Allergens: {p.allergen || '-'}
+                      </p>
                       <RatingStars
                         value={ratingSummary[p.id]?.average ?? 0}
                         count={ratingSummary[p.id]?.count ?? 0}

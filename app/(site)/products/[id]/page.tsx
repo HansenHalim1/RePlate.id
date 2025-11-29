@@ -8,10 +8,11 @@ import RatingStars from '@/components/RatingStars'
 import { supabaseBrowser } from '@/lib/supabase-browser'
 import type { Database } from '@/lib/supabase.types'
 import { buildProductDescription } from '@/lib/descriptions'
+import { buildAllergenInfo } from '@/lib/allergens'
 
 /** Types aligned to Supabase schema */
 type Product = Database['public']['Tables']['products']['Row']
-type ProductDisplay = Product & { description?: string | null; hotel?: string | null }
+type ProductDisplay = Product & { description?: string | null; hotel?: string | null; allergen?: string | null }
 type RatingRow = Database['public']['Tables']['product_ratings']['Row']
 type Order = Database['public']['Tables']['orders']['Row']
 type OrderItem = Database['public']['Tables']['order_items']['Row']
@@ -21,6 +22,7 @@ type EligibleOrder = Pick<Order, 'id' | 'created_at'>
 const withDescription = (p: ProductDisplay): ProductDisplay => ({
   ...p,
   description: buildProductDescription(p),
+  allergen: buildAllergenInfo(p),
 })
 
 export default function ProductDetailPage() {
@@ -272,6 +274,9 @@ export default function ProductDetailPage() {
                     <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">{product.name}</h1>
                     <p className="text-slate-600 text-sm sm:text-base">
                       {product.description || product.category || 'RePlate.id Partner Hotel'}
+                    </p>
+                    <p className="text-xs text-slate-500 mt-1">
+                      Allergens: {product.allergen || '-'}
                     </p>
                   </div>
                   <div className="text-right">

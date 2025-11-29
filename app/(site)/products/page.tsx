@@ -8,13 +8,15 @@ import RatingStars from '@/components/RatingStars'
 import type { Database } from '@/lib/supabase.types'
 import Link from 'next/link'
 import { buildProductDescription } from '@/lib/descriptions'
+import { buildAllergenInfo } from '@/lib/allergens'
 
 type Product = Database['public']['Tables']['products']['Row']
-type ProductDisplay = Product & { description?: string | null; hotel?: string | null }
+type ProductDisplay = Product & { description?: string | null; hotel?: string | null; allergen?: string | null }
 
 const withDescription = (p: ProductDisplay): ProductDisplay => ({
   ...p,
   description: buildProductDescription(p),
+  allergen: buildAllergenInfo(p),
 })
 
 export default function ProductsPage() {
@@ -200,14 +202,17 @@ export default function ProductsPage() {
                           />
                         </div>
                         <h3 className="mt-3 font-semibold text-slate-800 hover:text-[color:var(--rp-green)] transition">{p.name}</h3>
-                        <p className="text-sm text-slate-600">
-                          {p.description || p.hotel || 'RePlate.id Partner Hotel'}
-                        </p>
-                      </Link>
-                      <div className="mt-2 flex flex-col items-center gap-1">
-                        <RatingStars
-                          value={ratingSummary[p.id]?.average ?? 0}
-                          count={ratingSummary[p.id]?.count ?? 0}
+                      <p className="text-sm text-slate-600">
+                        {p.description || p.hotel || 'RePlate.id Partner Hotel'}
+                      </p>
+                      <p className="text-[11px] text-slate-500 mt-1">
+                        Allergens: {p.allergen || '-'}
+                      </p>
+                    </Link>
+                    <div className="mt-2 flex flex-col items-center gap-1">
+                      <RatingStars
+                        value={ratingSummary[p.id]?.average ?? 0}
+                        count={ratingSummary[p.id]?.count ?? 0}
                         />
                         <span className="text-xs text-slate-500">Can only rate after the product is bought.</span>
                       </div>
